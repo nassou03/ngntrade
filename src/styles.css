@@ -1,0 +1,99 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Syne", "IBM Plex Sans", ui-sans-serif, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --color-background: #08090c;
+  --color-foreground: #e8eaef;
+  --color-card: #101218;
+  --color-card-foreground: #e8eaef;
+  --color-elevated: #171a22;
+  --color-muted-foreground: #9aa3b2;
+  --color-subtle: #6b7380;
+  --color-border: color-mix(in oklab, #e8eaef 12%, transparent);
+  --color-input: color-mix(in oklab, #e8eaef 16%, transparent);
+  --color-ring: #9eb4c8;
+  --color-primary: #e8eaef;
+  --color-primary-foreground: #08090c;
+  --color-accent: #9eb4c8;
+  --color-accent-foreground: #08090c;
+  --color-bull: #5d9b7a;
+  --color-bear: #c46a6a;
+  --color-warn: #c4a15a;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1.5rem;
+
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-quick: 150ms;
+  --duration-fast: 250ms;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  html {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    min-height: 100dvh;
+    font-family: var(--font-sans);
+    background:
+      radial-gradient(
+        900px 420px at 82% -8%,
+        color-mix(in oklab, var(--color-accent) 7%, transparent),
+        transparent 62%
+      ),
+      var(--color-background);
+    color: var(--color-foreground);
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+.shimmer-text {
+  background: linear-gradient(
+    90deg,
+    var(--color-muted-foreground) 0%,
+    var(--color-foreground) 45%,
+    var(--color-muted-foreground) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  color: transparent;
+  animation: ngn-shimmer 1.8s linear infinite;
+}
+
+@keyframes ngn-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-text {
+    animation: none;
+    color: var(--color-accent);
+    background: none;
+  }
+}
