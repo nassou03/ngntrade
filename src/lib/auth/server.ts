@@ -47,8 +47,19 @@ import {
   PREVIEW_CLIENT_SECRET,
 } from "./preview";
 
-// Kick (and share) PGLite bootstrap as soon as the auth server module loads.
-void ensureDbReady();
+/** Read an env var, treating empty/whitespace as unset. */
+const envEarly = (key: string): string | undefined => {
+  const value = process.env[key]?.trim();
+  return value ? value : undefined;
+};
+
+// Only bootstrap embedded PGLite when auth is actually on (or a real DB URL exists).
+// On Vercel without DATABASE_URL, forcing PGLite often causes a 500 on every request.
+const authOffEarly = envEarly("VITE_AUTH_ENABLED") === "false";
+const hasDatabaseUrl = Boolean(envEarly("DATABASE_URL"));
+if (!authOffEarly || hasDatabaseUrl) {
+  void ensureDbReady();
+}
 
 /**
  * Preview secret must outlive module reloads: PGLite (and its session rows) is

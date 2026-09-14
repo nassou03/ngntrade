@@ -230,9 +230,10 @@ const globalBoot = globalThis as typeof globalThis & {
   __pgBootstrapPromise__?: Promise<void>;
 };
 if (typeof window === "undefined" && dbSource === "pglite") {
+  // On serverless hosts (Vercel) without DATABASE_URL, PGLite may fail.
+  // Log and continue so the app still serves pages when auth/DB are disabled.
   globalBoot.__pgBootstrapPromise__ ??= ensureDbReady().catch((err) => {
     globalBoot.__pgBootstrapPromise__ = undefined;
-    console.error("[db] PGLite bootstrap failed:", err);
-    throw err;
+    console.error("[db] PGLite bootstrap failed (non-fatal):", err);
   });
 }
