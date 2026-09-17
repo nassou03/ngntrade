@@ -39,7 +39,7 @@ function envLink(key: string, fallback: string) {
  * Variables supportées :
  * - VITE_AFFILIATE_XM
  * - VITE_AFFILIATE_BINANCE
- * - VITE_AFFILIATE_OKX
+ * - VITE_AFFILIATE_EXNESS
  * - VITE_AFFILIATE_BROKER (générique / autre broker)
  * - VITE_AFFILIATE_PROP
  * - VITE_AFFILIATE_CHART
@@ -66,14 +66,14 @@ export const PARTNERS: Partner[] = [
     tag: "Crypto",
   },
   {
-    id: "okx",
-    name: "OKX",
-    blurb: "Exchange crypto & dérivés — alternative multi-produits.",
+    id: "exness",
+    name: "Exness",
+    blurb: "Broker Forex & CFD — exécution et compte démo.",
     href: envLink(
-      "VITE_AFFILIATE_OKX",
-      "https://www.okx.com",
+      "VITE_AFFILIATE_EXNESS",
+      "https://www.exness.com",
     ),
-    tag: "Crypto",
+    tag: "Forex",
   },
   {
     id: "broker-fx",
