@@ -3,7 +3,7 @@
  * - Hébergement : Vercel Hobby (gratuit)
  * - Marchés : API gratuites
  * - IA : XAI_API_KEY (crédits xAI)
- * - Affiliés : VITE_AFFILIATE_BROKER / _PROP / _CHART
+ * - Affiliés : VITE_AFFILIATE_* (voir PARTNERS)
  * - Premium : page /premium prête ; Stripe plus tard
  */
 
@@ -32,12 +32,53 @@ function envLink(key: string, fallback: string) {
   return fallback;
 }
 
-/** Liens partenaires — remplace par tes URLs d'affiliation. */
+/**
+ * Liens partenaires affichés dans le footer.
+ * Configure chaque URL sur Vercel → Environment Variables, puis Redeploy.
+ *
+ * Variables supportées :
+ * - VITE_AFFILIATE_XM
+ * - VITE_AFFILIATE_BINANCE
+ * - VITE_AFFILIATE_OKX
+ * - VITE_AFFILIATE_BROKER (générique / autre broker)
+ * - VITE_AFFILIATE_PROP
+ * - VITE_AFFILIATE_CHART
+ */
 export const PARTNERS: Partner[] = [
   {
+    id: "xm",
+    name: "XM",
+    blurb: "Broker Forex & CFD — compte démo et exécution.",
+    href: envLink(
+      "VITE_AFFILIATE_XM",
+      "https://www.xm.com",
+    ),
+    tag: "Forex",
+  },
+  {
+    id: "binance",
+    name: "Binance",
+    blurb: "Exchange crypto — spot, futures, compte débutant.",
+    href: envLink(
+      "VITE_AFFILIATE_BINANCE",
+      "https://www.binance.com",
+    ),
+    tag: "Crypto",
+  },
+  {
+    id: "okx",
+    name: "OKX",
+    blurb: "Exchange crypto & dérivés — alternative multi-produits.",
+    href: envLink(
+      "VITE_AFFILIATE_OKX",
+      "https://www.okx.com",
+    ),
+    tag: "Crypto",
+  },
+  {
     id: "broker-fx",
-    name: "Broker Forex / CFD",
-    blurb: "Compte démo + exécution. Colle ton lien d'affiliation.",
+    name: "Autre broker",
+    blurb: "Lien générique si tu as un 4ᵉ partenaire Forex/CFD.",
     href: envLink(
       "VITE_AFFILIATE_BROKER",
       "https://www.google.com/search?q=broker+forex+affiliation",
@@ -52,12 +93,12 @@ export const PARTNERS: Partner[] = [
       "VITE_AFFILIATE_PROP",
       "https://www.google.com/search?q=prop+firm+affiliation",
     ),
-    tag: "Affiliation",
+    tag: "Prop",
   },
   {
     id: "data",
-    name: "Outils charting",
-    blurb: "TradingView et équivalents : programme partenaire souvent gratuit.",
+    name: "TradingView",
+    blurb: "Charting pro — programme partenaire souvent gratuit.",
     href: envLink("VITE_AFFILIATE_CHART", "https://www.tradingview.com"),
     tag: "Outils",
   },
