@@ -72,7 +72,7 @@ type Props = {
  * Advanced chart embed (free TradingView widget).
  * Click a market card to change the symbol.
  */
-export function TradingViewChart({ symbol, height = 480 }: Props) {
+export function TradingViewChart({ symbol, height = 560 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const tvSymbol = TV_SYMBOLS[symbol] ?? `FX:${symbol}`;
 
@@ -113,7 +113,65 @@ export function TradingViewChart({ symbol, height = 480 }: Props) {
           details: false,
           hotlist: false,
           calendar: false,
-          studies: ["STD;SMA"],
+          /**
+           * Indicateurs + paramètres (widget TradingView free).
+           * ATR = volatilité ; RSI 14 (70/30) ; MACD 12/26/9 ;
+           * Bollinger 20,2 ; EMA 9 & SMA 20 ; Stoch 14,3,3.
+           * Volume Profile Fixed Range n'est pas toujours dispo en embed :
+           * on charge Visible Range Volume Profile si supporté, sinon Volume.
+           */
+          studies: [
+            "STD;SMA",
+            "STD;EMA",
+            "STD;BB",
+            "STD;RSI",
+            "STD;MACD",
+            "STD;Stochastic",
+            "STD;ATR",
+            "Volume@tv-basicstudies",
+            // Profil de volume (visible range — proche du fixed range en embed)
+            "VB@tv-volumebyprice",
+          ],
+          studies_overrides: {
+            // RSI
+            "rsi.length": 14,
+            "rsi.upperLimit": 70,
+            "rsi.lowerLimit": 30,
+            "RSI.length": 14,
+            "RSI.UpperLimit": 70,
+            "RSI.LowerLimit": 30,
+            // MACD
+            "macd.fastLength": 12,
+            "macd.slowLength": 26,
+            "macd.signalLength": 9,
+            "MACD.fast length": 12,
+            "MACD.slow length": 26,
+            "MACD.signal length": 9,
+            // Bollinger
+            "bollinger bands.length": 20,
+            "bollinger bands.mult": 2,
+            "BB.length": 20,
+            "BB.mult": 2,
+            // ATR
+            "atr.length": 14,
+            "ATR.length": 14,
+            // Moyennes
+            "moving average.length": 20,
+            "SMA.length": 20,
+            "EMA.length": 9,
+            // Stochastique
+            "stochastic.length": 14,
+            "stochastic.smoothK": 3,
+            "stochastic.smoothD": 3,
+          },
+          overrides: {
+            "mainSeriesProperties.candleStyle.upColor": "#22c55e",
+            "mainSeriesProperties.candleStyle.downColor": "#ef4444",
+            "mainSeriesProperties.candleStyle.borderUpColor": "#22c55e",
+            "mainSeriesProperties.candleStyle.borderDownColor": "#ef4444",
+            "mainSeriesProperties.candleStyle.wickUpColor": "#22c55e",
+            "mainSeriesProperties.candleStyle.wickDownColor": "#ef4444",
+          },
         });
       })
       .catch(() => {
