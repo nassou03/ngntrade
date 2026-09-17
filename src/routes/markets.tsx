@@ -7,12 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { MARKETS, MARKET_LABELS, type Market } from "@/lib/analysis/types";
 import { INSTRUMENTS } from "@/lib/markets/instruments";
 import { getMarketQuotes } from "@/lib/markets/quotes";
+import { TradingViewChart } from "@/components/markets/tradingview-chart";
 import { cn, formatPct, formatPrice } from "@/lib/utils";
 
 export const Route = createFileRoute("/markets")({ component: MarketsPage });
 
 function MarketsPage() {
   const [tab, setTab] = useState<Market | "all">("all");
+  const [selected, setSelected] = useState("EURUSD");
   const { data, isLoading, isFetching, dataUpdatedAt, refetch, isError } =
     useQuery({
       queryKey: ["quotes"],
@@ -35,9 +37,9 @@ function MarketsPage() {
             Quatre marchés, un analyzer
           </h1>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Forex, cryptomonnaies, matières premières, indices. Prix live via
-            Frankfurter, CoinGecko, Yahoo — et Alpha Vantage si la clé
-            ALPHA_VANTAGE_API_KEY est configurée. Sinon valeurs de secours.
+            Forex, cryptomonnaies, matières premières, indices. Prix via
+            Frankfurter, CoinGecko, Yahoo. Clique un actif pour afficher le
+            graphique TradingView.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -86,6 +88,10 @@ function MarketsPage() {
         ))}
       </div>
 
+      <div className="mt-6">
+        <TradingViewChart symbol={selected} height={480} />
+      </div>
+
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {list.map((ins) => {
           const q = data?.[ins.symbol] ?? {
@@ -94,10 +100,25 @@ function MarketsPage() {
           };
           const up = q.change >= 0;
           const live = Boolean(data?.[ins.symbol]);
+          const isSelected = selected === ins.symbol;
           return (
             <article
               key={ins.symbol}
-              className="rounded-xl border border-border bg-card p-4"
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelected(ins.symbol)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setSelected(ins.symbol);
+                }
+              }}
+              className={cn(
+                "cursor-pointer rounded-xl border bg-card p-4 transition-colors",
+                isSelected
+                  ? "border-accent ring-1 ring-accent/40"
+                  : "border-border hover:border-border/80",
+              )}
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -130,9 +151,22 @@ function MarketsPage() {
               >
                 {formatPct(q.change)}
               </p>
-              <Button asChild variant="ghost" size="sm" className="mt-3 px-0">
-                <Link to="/analyzer">Analyser une capture</Link>
-              </Button>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant={isSelected ? "default" : "outline"}
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelected(ins.symbol);
+                  }}
+                >
+                  Graphique
+                </Button>
+                <Button asChild variant="ghost" size="sm" className="px-0">
+                  <Link to="/analyzer">Analyser une capture</Link>
+                </Button>
+              </div>
             </article>
           );
         })}
