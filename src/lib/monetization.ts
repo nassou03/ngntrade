@@ -127,10 +127,10 @@ export const PLANS: Plan[] = [
     highlighted: true,
     features: [
       "Tout le plan Gratuit",
+      "EA SMC MultiSetup PRO v5.30 (fichier MT5)",
       "Quota d’analyses IA inclus (à brancher)",
       "Historique cloud (auth + DB plus tard)",
       "Priorité de traitement",
-      "Sans liens d’affiliation imposés",
     ],
   },
 ];
