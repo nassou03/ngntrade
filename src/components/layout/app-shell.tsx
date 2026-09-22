@@ -10,6 +10,7 @@ import {
   Menu,
   MessageSquare,
   Plus,
+  Sparkles,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -35,9 +36,14 @@ function NavLinks({
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   return (
-    <nav className={cn("flex", compact ? "flex-col gap-1" : "items-center gap-1")}>
+    <nav
+      className={cn(
+        "flex",
+        compact ? "flex-col gap-1" : "items-center gap-0.5 rounded-full border border-border/60 bg-elevated/40 p-1",
+      )}
+    >
       {NAV.map((item) => {
-        const active = pathname === item.to;
+        const active = pathname === item.to || pathname.startsWith(item.to + "/");
         const Icon = item.icon;
         return (
           <Link
@@ -45,13 +51,14 @@ function NavLinks({
             to={item.to}
             onClick={onNavigate}
             className={cn(
-              "inline-flex h-11 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors duration-quick ease-smooth",
+              "inline-flex items-center gap-2 rounded-full px-3 text-sm font-medium transition-all duration-quick ease-smooth",
+              compact ? "h-11 justify-start" : "h-9",
               active
-                ? "bg-elevated text-foreground"
+                ? "bg-foreground text-background shadow-sm"
                 : "text-muted-foreground hover:bg-elevated hover:text-foreground",
             )}
           >
-            <Icon className="size-4" />
+            <Icon className={cn("size-3.5", active && "opacity-90")} />
             {item.label}
           </Link>
         );
@@ -74,9 +81,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="flex min-h-dvh flex-col bg-background text-foreground">
-        <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-sm">
+        <header className="sticky top-0 z-40 border-b border-border/80 glass-strong">
           <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
-            <Link to="/" className="shrink-0" aria-label="Ngntrade — accueil">
+            <Link to="/" className="shrink-0 transition-opacity hover:opacity-90" aria-label="Ngntrade — accueil">
               <Logo />
             </Link>
             <div className="hidden flex-1 md:flex md:justify-center">
@@ -88,7 +95,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Link to="/markets">Marchés</Link>
                 </Button>
               ) : null}
-              <Button asChild size="sm">
+              <Button asChild size="sm" variant="outline" className="hidden sm:inline-flex border-border/80">
+                <Link to="/premium">
+                  <Sparkles className="size-3.5 text-accent" />
+                  Premium
+                </Link>
+              </Button>
+              <Button asChild size="sm" className="shadow-[0_0_20px_-6px_color-mix(in_oklab,var(--color-accent)_40%,transparent)]">
                 <Link to="/analyzer">
                   <Plus className="size-4" />
                   <span className="hidden sm:inline">Nouvelle analyse</span>
@@ -107,8 +120,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
           {isHome ? (
-            <div className="hidden border-t border-border md:block">
-              <div className="mx-auto flex max-w-6xl justify-center py-1">
+            <div className="hidden border-t border-border/50 md:block">
+              <div className="mx-auto flex max-w-6xl justify-center py-2">
                 <NavLinks />
               </div>
             </div>
@@ -116,64 +129,86 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
 
         <Sheet open={open} onOpenChange={setOpen}>
-          <SheetContent side="left">
-            <Logo className="mb-6" />
+          <SheetContent side="left" className="border-border bg-card">
+            <Logo className="mb-8" />
             <NavLinks onNavigate={() => setOpen(false)} compact />
+            <div className="mt-8 space-y-2 border-t border-border pt-6">
+              <Button asChild className="w-full" onClick={() => setOpen(false)}>
+                <Link to="/analyzer">Nouvelle analyse</Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full" onClick={() => setOpen(false)}>
+                <Link to="/premium">Premium & EA MT5</Link>
+              </Button>
+            </div>
           </SheetContent>
         </Sheet>
 
-        <div className="flex-1 pb-16 md:pb-0">{children}</div>
+        <div className="flex-1 pb-20 md:pb-0">{children}</div>
 
-        <footer className="border-t border-border py-8">
-          <div className="mx-auto max-w-6xl space-y-6 px-4">
-            <div className="grid gap-3 sm:grid-cols-3">
+        {/* Mobile bottom nav */}
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 glass-strong md:hidden">
+          <div className="mx-auto flex max-w-lg items-stretch justify-between px-1 py-1">
+            {NAV.slice(0, 5).map((item) => {
+              const active = pathname === item.to;
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={cn(
+                    "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-2 text-[10px] font-medium transition-colors",
+                    active ? "text-accent" : "text-subtle hover:text-muted-foreground",
+                  )}
+                >
+                  <Icon className={cn("size-5", active && "stroke-[2.25px]")} />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+
+        <footer className="mt-auto border-t border-border/80 bg-card/40 py-10">
+          <div className="mx-auto max-w-6xl space-y-8 px-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {PARTNERS.map((p) => (
                 <a
                   key={p.id}
                   href={p.href}
                   target="_blank"
                   rel="noopener noreferrer sponsored"
-                  className="rounded-lg border border-border bg-card/50 px-3 py-2 transition-colors hover:border-accent/40"
+                  className="card-lift group rounded-xl border border-border bg-card/80 p-4"
                 >
-                  <p className="text-[10px] font-medium tracking-wide text-accent uppercase">
+                  <p className="text-[10px] font-semibold tracking-wider text-subtle uppercase">
                     {p.tag}
                   </p>
-                  <p className="mt-0.5 text-xs font-medium text-foreground">{p.name}</p>
-                  <p className="mt-0.5 text-[11px] text-subtle">{p.blurb}</p>
+                  <p className="mt-1 font-display text-base font-semibold group-hover:text-accent transition-colors">
+                    {p.name}
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    {p.blurb}
+                  </p>
                 </a>
               ))}
             </div>
-            <div className="flex flex-col gap-2 text-xs text-subtle sm:flex-row sm:items-start sm:justify-between">
-              <p className="max-w-2xl leading-relaxed">{LEGAL_DISCLAIMER}</p>
+            <div className="flex flex-col gap-3 border-t border-border/60 pt-6 sm:flex-row sm:items-end sm:justify-between">
+              <p className="max-w-2xl text-xs leading-relaxed text-subtle">
+                {LEGAL_DISCLAIMER}
+              </p>
               <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
-                <p>Forex · Crypto · Matières · Indices</p>
-                <Link to="/premium" className="text-accent hover:underline">
+                <p className="text-xs text-muted-foreground">
+                  Forex · Crypto · Matières · Indices
+                </p>
+                <Link
+                  to="/premium"
+                  className="text-xs font-medium text-accent hover:underline"
+                >
                   Offre Premium
                 </Link>
               </div>
             </div>
           </div>
         </footer>
-
-        <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] md:hidden">
-          {NAV.slice(0, 5).map((item) => {
-            const active = pathname === item.to;
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={cn(
-                  "flex min-h-14 flex-col items-center justify-center gap-1 text-[10px] font-medium",
-                  active ? "text-foreground" : "text-subtle",
-                )}
-              >
-                <Icon className="size-4" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
       </div>
     </QueryClientProvider>
   );

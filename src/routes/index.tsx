@@ -118,126 +118,146 @@ function Home() {
         thesis: sample.thesis,
       });
       void navigate({ to: "/analyzer" });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Exemple indisponible");
+    } catch {
+      toast.error("Échantillon indisponible");
     }
   }
 
   return (
     <main>
-      <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-12 lg:grid-cols-[1.05fr_0.95fr] lg:py-16">
-        <div>
-          <Badge variant="accent">Forex · Crypto · Matières · Indices</Badge>
-          <h1 className="mt-4 font-display text-4xl font-semibold tracking-tight sm:text-5xl lg:text-[3.4rem] lg:leading-[1.05]">
-            L’IA qui lit vos graphiques.
-          </h1>
-          <p className="mt-4 max-w-lg text-base leading-relaxed text-muted-foreground">
-            Envoyez une capture. Ngntrade renvoie un plan : biais, supports et
-            résistances, zone d’entrée, stop, cibles. Vous exécutez où vous tradez déjà.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button asChild size="lg">
-              <Link to="/analyzer">
-                Ouvrir l’analyzer
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link to="/markets">Voir les marchés</Link>
-            </Button>
+      {/* Hero */}
+      <section className="relative overflow-hidden border-b border-border/60">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_color-mix(in_oklab,var(--color-accent)_8%,transparent),_transparent_55%)]" />
+        <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-14 md:grid-cols-2 md:items-center md:py-20">
+          <div className="animate-fade-up">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-elevated/50 px-3 py-1 text-[11px] font-medium tracking-wide text-muted-foreground">
+              <span className="size-1.5 rounded-full bg-bull" />
+              FOREX · CRYPTO · MATIÈRES · INDICES
+            </div>
+            <h1 className="mt-5 font-display text-4xl font-semibold tracking-tight sm:text-5xl md:text-[3.25rem] md:leading-[1.08]">
+              L’IA qui lit vos{" "}
+              <span className="bg-gradient-to-r from-accent to-bull bg-clip-text text-transparent">
+                graphiques
+              </span>
+              .
+            </h1>
+            <p className="mt-4 max-w-md text-base leading-relaxed text-muted-foreground">
+              Envoyez une capture. Ngntrade renvoie un plan : biais, supports et
+              résistances, zone d’entrée, stop, cibles. Vous exécutez où vous
+              tradez déjà.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Button asChild size="lg">
+                <Link to="/analyzer">
+                  Ouvrir l’analyzer
+                  <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline">
+                <Link to="/markets">Voir les marchés</Link>
+              </Button>
+            </div>
+            <p className="mt-4 text-xs text-subtle">
+              Lecture éducative. Pas un conseil d’investissement.
+            </p>
           </div>
-          <p className="mt-6 text-xs text-subtle">
-            Lecture éducative. Pas un conseil d’investissement.
-          </p>
+
+          <div className="animate-fade-up space-y-4 [animation-delay:80ms]">
+            <div className="rounded-2xl border border-border/80 bg-card/80 p-1 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.9)]">
+              <div className="rounded-xl border border-dashed border-border/80 bg-elevated/30 p-4">
+                <Dropzone onFile={onFile} />
+              </div>
+            </div>
+            <MockPlan />
+            <p className="text-center text-[11px] text-subtle">
+              TradingView, MetaTrader, cTrader, broker — n’importe quelle capture nette.
+            </p>
+          </div>
         </div>
-        <div className="space-y-3">
-          <Dropzone onFile={onFile} />
-          <MockPlan />
-          <p className="text-center text-xs text-subtle">
-            TradingView, MetaTrader, cTrader, broker — n’importe quelle capture nette.
-          </p>
+
+        <div className="border-t border-border/50 bg-card/20">
+          <div className="mx-auto max-w-6xl px-4 py-4">
+            <MarketTicker />
+          </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 pb-2">
-        <MarketTicker />
-      </section>
-
-      <section className="border-y border-border bg-card/40">
-        <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:grid-cols-3">
+      {/* Proofs */}
+      <section className="border-b border-border/60">
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-3">
           <Proof k="4 marchés" v="FX, crypto, or, indices" />
           <Proof k="Plan structuré" v="Biais, niveaux, R:R" />
           <Proof k="Vous gardez la main" v="Taille et ordres chez vous" />
         </div>
       </section>
 
-      <section className="border-b border-border bg-card/40">
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-4">
-          {STEPS.map((s) => (
-            <div key={s.n}>
-              <p className="font-mono text-xs text-accent">{s.n}</p>
-              <h2 className="mt-2 font-display text-lg font-semibold">{s.title}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-4 py-14">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-medium tracking-wide text-accent uppercase">Exemples</p>
-            <h2 className="mt-1 font-display text-2xl font-semibold">Quatre classes d’actifs</h2>
-          </div>
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/analyzer">Tout analyser</Link>
-          </Button>
-        </div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {SAMPLE_CHARTS.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => void loadSample(s.id)}
-              className="group overflow-hidden rounded-xl border border-border bg-card text-left"
-            >
-              <img
-                src={s.file}
-                alt={s.symbol}
-                className="h-36 w-full object-cover transition-opacity duration-fast group-hover:opacity-90"
-              />
-              <div className="p-3">
-                <p className="font-mono text-sm">{s.symbol}</p>
-                <p className="text-xs text-muted-foreground">
-                  {s.timeframe} · {s.title}
+      {/* Steps */}
+      <section className="border-b border-border/60">
+        <div className="mx-auto max-w-6xl px-4 py-16">
+          <p className="section-kicker">Parcours</p>
+          <h2 className="mt-2 font-display text-2xl font-semibold sm:text-3xl">
+            De la capture au plan
+          </h2>
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {STEPS.map((s) => (
+              <div
+                key={s.n}
+                className="card-lift relative rounded-2xl border border-border bg-card/80 p-5"
+              >
+                <span className="font-mono text-xs text-accent">{s.n}</span>
+                <h3 className="mt-3 font-display text-base font-semibold">{s.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {s.body}
                 </p>
               </div>
-            </button>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="border-t border-border">
-        <div className="mx-auto grid max-w-6xl gap-6 px-4 py-14 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="rounded-xl border border-border bg-card p-5">
-              <f.icon className="size-5 text-accent" />
-              <h3 className="mt-3 font-display text-lg font-semibold">{f.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.body}</p>
-            </div>
-          ))}
+      {/* Features */}
+      <section className="border-b border-border/60">
+        <div className="mx-auto max-w-6xl px-4 py-16">
+          <p className="section-kicker">Produit</p>
+          <h2 className="mt-2 font-display text-2xl font-semibold sm:text-3xl">
+            Tout pour structurer une session
+          </h2>
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((f) => (
+              <div
+                key={f.title}
+                className="card-lift rounded-2xl border border-border bg-card/80 p-5"
+              >
+                <div className="inline-flex size-10 items-center justify-center rounded-xl border border-border bg-elevated/60">
+                  <f.icon className="size-5 text-accent" />
+                </div>
+                <h3 className="mt-4 font-display text-lg font-semibold">{f.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {f.body}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="border-t border-border bg-card/30">
-        <div className="mx-auto max-w-6xl px-4 py-14">
-          <p className="text-xs font-medium tracking-wide text-accent uppercase">Traders</p>
-          <h2 className="mt-1 font-display text-2xl font-semibold">Un second regard, pas un gourou</h2>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
+      {/* Quotes */}
+      <section className="bg-card/25">
+        <div className="mx-auto max-w-6xl px-4 py-16">
+          <p className="section-kicker">Traders</p>
+          <h2 className="mt-2 font-display text-2xl font-semibold sm:text-3xl">
+            Un second regard, pas un gourou
+          </h2>
+          <div className="mt-10 grid gap-4 md:grid-cols-3">
             {QUOTES.map((q) => (
-              <blockquote key={q.name} className="rounded-xl border border-border bg-card p-5">
-                <p className="text-sm leading-relaxed text-foreground/90">“{q.body}”</p>
-                <footer className="mt-4">
+              <blockquote
+                key={q.name}
+                className="card-lift rounded-2xl border border-border bg-card/90 p-6"
+              >
+                <p className="text-sm leading-relaxed text-foreground/90">
+                  “{q.body}”
+                </p>
+                <footer className="mt-5 border-t border-border/60 pt-4">
                   <p className="text-sm font-medium">{q.name}</p>
                   <p className="text-xs text-subtle">{q.role}</p>
                 </footer>
@@ -252,8 +272,8 @@ function Home() {
 
 function Proof({ k, v }: { k: string; v: string }) {
   return (
-    <div>
-      <p className="font-display text-lg font-semibold">{k}</p>
+    <div className="text-center sm:text-left">
+      <p className="font-display text-xl font-semibold tracking-tight sm:text-2xl">{k}</p>
       <p className="mt-1 text-sm text-muted-foreground">{v}</p>
     </div>
   );
@@ -261,7 +281,7 @@ function Proof({ k, v }: { k: string; v: string }) {
 
 function MockPlan() {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-2xl border border-border/80 bg-card/90 p-4 shadow-lg">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="font-mono text-sm">EURUSD · H1</p>
@@ -270,17 +290,17 @@ function MockPlan() {
         <Badge variant="bull">Haussier</Badge>
       </div>
       <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
-        <div className="rounded-md bg-elevated px-2 py-2">
+        <div className="rounded-lg border border-border/50 bg-elevated/80 px-2.5 py-2.5">
           <dt className="text-subtle">Entrée</dt>
           <dd className="mt-0.5 font-mono tabular-nums">1.1742–1.1758</dd>
         </div>
-        <div className="rounded-md bg-elevated px-2 py-2">
+        <div className="rounded-lg border border-border/50 bg-elevated/80 px-2.5 py-2.5">
           <dt className="text-subtle">Stop</dt>
           <dd className="mt-0.5 font-mono tabular-nums text-bear">1.1718</dd>
         </div>
-        <div className="rounded-md bg-elevated px-2 py-2">
+        <div className="rounded-lg border border-border/50 bg-elevated/80 px-2.5 py-2.5">
           <dt className="text-subtle">R:R</dt>
-          <dd className="mt-0.5 font-mono tabular-nums">2.14</dd>
+          <dd className="mt-0.5 font-mono tabular-nums text-bull">2.14</dd>
         </div>
       </dl>
     </div>
