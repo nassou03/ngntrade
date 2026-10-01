@@ -2,7 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { ChartAnalysisSchema, ANALYSIS_JSON_SCHEMA } from "./schema";
 import type { AnalysisInput, ChartAnalysis, CopilotTone } from "./types";
 
-const MODEL = "grok-4.5";
+/** xAI model (si XAI_API_KEY) */
+const XAI_MODEL = process.env.XAI_MODEL?.trim() || "grok-4.5";
+/** Claude vision (si ANTHROPIC_API_KEY) — modèle configurable */
+const ANTHROPIC_MODEL =
+  process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-4-5-20250929";
 
 type AnalyzePayload = {
   imageDataUrl: string;
@@ -15,6 +19,10 @@ type ChatPayload = {
   analysisContext?: string;
 };
 
+type LlmResult =
+  | { ok: true; text: string; provider: "anthropic" | "xai" }
+  | { ok: false; error: string; status?: number };
+
 function extractJson(text: string) {
   const trimmed = text.trim();
   const start = trimmed.indexOf("{");
@@ -25,17 +33,105 @@ function extractJson(text: string) {
   return JSON.parse(trimmed.slice(start, end + 1)) as unknown;
 }
 
+function parseDataUrl(dataUrl: string): {
+  mediaType: string;
+  base64: string;
+} | null {
+  const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/s.exec(dataUrl);
+  if (!m) return null;
+  return { mediaType: m[1], base64: m[2] };
+}
+
+function hasAnthropic() {
+  return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+}
+
+function hasXai() {
+  return Boolean(process.env.XAI_API_KEY?.trim());
+}
+
+async function callAnthropic(opts: {
+  system?: string;
+  messages: unknown[];
+  maxTokens: number;
+  temperature?: number;
+  timeoutMs?: number;
+}): Promise<LlmResult> {
+  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  if (!apiKey) {
+    return { ok: false, error: "ANTHROPIC_API_KEY manquante" };
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(),
+    opts.timeoutMs ?? 90_000,
+  );
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: ANTHROPIC_MODEL,
+        max_tokens: opts.maxTokens,
+        temperature: opts.temperature ?? 0.2,
+        system: opts.system,
+        messages: opts.messages,
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      let detail = "";
+      try {
+        const errJson = (await res.json()) as { error?: { message?: string } };
+        detail = errJson.error?.message ? `: ${errJson.error.message}` : "";
+      } catch {
+        /* ignore */
+      }
+      return {
+        ok: false,
+        error: `Anthropic API error ${res.status}${detail}`,
+        status: res.status,
+      };
+    }
+    const json = (await res.json()) as {
+      content?: { type: string; text?: string }[];
+    };
+    const text =
+      json.content
+        ?.filter((c) => c.type === "text")
+        .map((c) => c.text ?? "")
+        .join("\n") ?? "";
+    return { ok: true, text, provider: "anthropic" };
+  } catch (err) {
+    const aborted = err instanceof Error && err.name === "AbortError";
+    return {
+      ok: false,
+      error: aborted
+        ? "L’analyse a pris trop de temps"
+        : "Connexion Anthropic impossible",
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function callXai(
   body: Record<string, unknown>,
   timeoutMs = 90_000,
-): Promise<{ ok: true; text: string } | { ok: false; error: string; status?: number }> {
-  const apiKey = process.env.XAI_API_KEY;
-  if (!apiKey)
+): Promise<LlmResult> {
+  const apiKey = process.env.XAI_API_KEY?.trim();
+  if (!apiKey) {
     return {
       ok: false,
       error:
-        "Analyse IA indisponible : configurez XAI_API_KEY (clé gratuite ou crédits xAI) côté serveur.",
+        "Analyse IA indisponible : configurez ANTHROPIC_API_KEY ou XAI_API_KEY côté serveur.",
     };
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -59,12 +155,18 @@ async function callXai(
     const json = (await res.json()) as {
       choices?: { message?: { content?: string } }[];
     };
-    return { ok: true, text: json.choices?.[0]?.message?.content ?? "" };
+    return {
+      ok: true,
+      text: json.choices?.[0]?.message?.content ?? "",
+      provider: "xai",
+    };
   } catch (err) {
     const aborted = err instanceof Error && err.name === "AbortError";
     return {
       ok: false,
-      error: aborted ? "L’analyse a pris trop de temps" : "Connexion IA impossible",
+      error: aborted
+        ? "L’analyse a pris trop de temps"
+        : "Connexion IA impossible",
     };
   } finally {
     clearTimeout(timer);
@@ -80,6 +182,7 @@ function buildAnalyzePrompt(input: AnalysisInput) {
     "Ce n’est pas un conseil financier : un plan à vérifier avant de risquer du capital.",
     "score = qualité du setup 0-100. confidence = certitude de lecture du graphique 0-100.",
     "takeProfits : 1 à 3 cibles dans le sens du trade. Si direction = wait, fournis tout de même des zones hypothétiques.",
+    "Réponds UNIQUEMENT avec un objet JSON valide (pas de markdown, pas de texte autour).",
   ];
   if (input.market && input.market !== "auto") {
     parts.push(`Marché déclaré par le trader : ${input.market}.`);
@@ -89,6 +192,9 @@ function buildAnalyzePrompt(input: AnalysisInput) {
   }
   if (input.risk) parts.push(`Risque annoncé : ${input.risk}.`);
   if (input.thesis) parts.push(`Thèse du trader : ${input.thesis}`);
+  parts.push(
+    `Schéma JSON attendu (clés obligatoires) : ${JSON.stringify(ANALYSIS_JSON_SCHEMA)}`,
+  );
   return parts.join("\n");
 }
 
@@ -102,43 +208,78 @@ export const analyzeChart = createServerFn({ method: "POST" })
       return { ok: false as const, error: "Image trop lourde" };
     }
 
-    const messages = [
-      {
-        role: "user",
-        content: [
+    if (!hasAnthropic() && !hasXai()) {
+      return {
+        ok: false as const,
+        error:
+          "Analyse IA indisponible : ajoutez ANTHROPIC_API_KEY (Claude) ou XAI_API_KEY sur Vercel.",
+      };
+    }
+
+    const prompt = buildAnalyzePrompt(data.input);
+    let result: LlmResult;
+
+    if (hasAnthropic()) {
+      const parsed = parseDataUrl(data.imageDataUrl);
+      if (!parsed) {
+        return { ok: false as const, error: "Image invalide (data URL)" };
+      }
+      result = await callAnthropic({
+        maxTokens: 2200,
+        temperature: 0.2,
+        messages: [
           {
-            type: "image_url",
-            image_url: { url: data.imageDataUrl, detail: "high" },
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: parsed.mediaType,
+                  data: parsed.base64,
+                },
+              },
+              { type: "text", text: prompt },
+            ],
           },
-          { type: "text", text: buildAnalyzePrompt(data.input) },
         ],
-      },
-    ];
-
-    const base = {
-      model: MODEL,
-      max_tokens: 2200,
-      temperature: 0.2,
-      messages,
-    };
-
-    let result = await callXai({
-      ...base,
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "chart_analysis",
-          strict: true,
-          schema: ANALYSIS_JSON_SCHEMA,
+      });
+    } else {
+      const messages = [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: { url: data.imageDataUrl, detail: "high" },
+            },
+            { type: "text", text: prompt },
+          ],
         },
-      },
-    });
-
-    if (!result.ok && result.status && result.status >= 400) {
+      ];
+      const base = {
+        model: XAI_MODEL,
+        max_tokens: 2200,
+        temperature: 0.2,
+        messages,
+      };
       result = await callXai({
         ...base,
-        response_format: { type: "json_object" },
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "chart_analysis",
+            strict: true,
+            schema: ANALYSIS_JSON_SCHEMA,
+          },
+        },
       });
+      if (!result.ok && result.status && result.status >= 400) {
+        result = await callXai({
+          ...base,
+          response_format: { type: "json_object" },
+        });
+      }
     }
 
     if (!result.ok) return { ok: false as const, error: result.error };
@@ -166,6 +307,14 @@ const TONE_PROMPTS: Record<CopilotTone, string> = {
 export const askCopilot = createServerFn({ method: "POST" })
   .validator((input: ChatPayload) => input)
   .handler(async ({ data }) => {
+    if (!hasAnthropic() && !hasXai()) {
+      return {
+        ok: false as const,
+        error:
+          "Copilote indisponible : configurez ANTHROPIC_API_KEY ou XAI_API_KEY.",
+      };
+    }
+
     const history = data.messages.slice(-8);
     const system = [
       TONE_PROMPTS[data.tone],
@@ -177,24 +326,42 @@ export const askCopilot = createServerFn({ method: "POST" })
         : "Aucun graphique chargé. Pose des questions de clarification plutôt que d’inventer des niveaux.",
     ].join("\n");
 
-    const result = await callXai(
-      {
-        model: MODEL,
-        max_tokens: 900,
+    let result: LlmResult;
+    if (hasAnthropic()) {
+      result = await callAnthropic({
+        system,
+        maxTokens: 900,
         temperature: 0.4,
-        messages: [{ role: "system", content: system }, ...history],
-      },
-      60_000,
-    );
+        timeoutMs: 60_000,
+        messages: history.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+      });
+    } else {
+      result = await callXai(
+        {
+          model: XAI_MODEL,
+          max_tokens: 900,
+          temperature: 0.4,
+          messages: [{ role: "system", content: system }, ...history],
+        },
+        60_000,
+      );
+    }
 
     if (!result.ok) return { ok: false as const, error: result.error };
     return { ok: true as const, text: result.text.trim() };
   });
 
-
-export const getAiStatus = createServerFn({ method: "GET" }).handler(async () => {
-  return {
-    configured: Boolean(process.env.XAI_API_KEY?.trim()),
-    markets: true,
-  };
-});
+export const getAiStatus = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const anthropic = hasAnthropic();
+    const xai = hasXai();
+    return {
+      configured: anthropic || xai,
+      provider: anthropic ? ("anthropic" as const) : xai ? ("xai" as const) : null,
+      markets: true,
+    };
+  },
+);

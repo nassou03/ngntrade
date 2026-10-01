@@ -2,7 +2,7 @@
  * Revenus passifs sans coût de départ.
  * - Hébergement : Vercel Hobby (gratuit)
  * - Marchés : API gratuites
- * - IA : XAI_API_KEY (crédits xAI)
+ * - IA : ANTHROPIC_API_KEY (Claude) ou XAI_API_KEY
  * - Affiliés : VITE_AFFILIATE_* (voir PARTNERS)
  * - Premium : page /premium prête ; Stripe plus tard
  */

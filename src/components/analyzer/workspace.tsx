@@ -119,9 +119,10 @@ export function AnalyzerWorkspace() {
         <div className="rounded-xl border border-border bg-elevated/80 px-4 py-3 text-sm text-muted-foreground">
           <p className="font-medium text-foreground">Analyse IA en attente de configuration</p>
           <p className="mt-1 text-xs leading-relaxed">
-            Ajoutez la variable d&apos;environnement serveur <code className="font-mono text-[11px]">XAI_API_KEY</code>{" "}
-            (crédits xAI) pour activer la lecture des graphiques. Les marchés live, le journal et le
-            dashboard fonctionnent déjà sans clé payante.
+            Ajoutez sur Vercel la variable serveur{" "}
+            <code className="font-mono text-[11px]">ANTHROPIC_API_KEY</code> (Claude) ou{" "}
+            <code className="font-mono text-[11px]">XAI_API_KEY</code> pour activer la lecture des
+            graphiques. Les marchés, le journal et le dashboard fonctionnent déjà sans clé IA.
           </p>
         </div>
       ) : null}
