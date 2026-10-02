@@ -22,7 +22,13 @@ const marketEnum = z.preprocess((v) => {
   const s = String(v ?? "").toLowerCase();
   if (s.includes("forex") || s.includes("fx") || s.includes("devise")) return "forex";
   if (s.includes("crypto") || s.includes("btc") || s.includes("eth")) return "crypto";
-  if (s.includes("commod") || s.includes("gold") || s.includes("xau") || s.includes("matière") || s.includes("matiere"))
+  if (
+    s.includes("commod") ||
+    s.includes("gold") ||
+    s.includes("xau") ||
+    s.includes("matière") ||
+    s.includes("matiere")
+  )
     return "commodity";
   if (s.includes("index") || s.includes("indice") || s.includes("nasdaq") || s.includes("spx"))
     return "index";
@@ -76,15 +82,27 @@ export const ChartAnalysisSchema = z.object({
       direction: directionEnum.catch("wait"),
       entryMin: num.catch(0),
       entryMax: num.catch(0),
+      sniperEntry: num.catch(0),
+      sniperReason: str(400).catch(""),
       stopLoss: num.catch(0),
       takeProfits: numArr.pipe(z.array(z.number()).max(4)).catch([]),
       riskReward: num.catch(0),
       invalidation: str(500).catch("Non précisé."),
     })
+    .transform((s) => {
+      let sniper = s.sniperEntry;
+      if (!sniper || sniper === 0) {
+        if (s.entryMin && s.entryMax) sniper = (s.entryMin + s.entryMax) / 2;
+        else sniper = s.entryMin || s.entryMax || 0;
+      }
+      return { ...s, sniperEntry: sniper };
+    })
     .catch({
       direction: "wait" as const,
       entryMin: 0,
       entryMax: 0,
+      sniperEntry: 0,
+      sniperReason: "",
       stopLoss: 0,
       takeProfits: [] as number[],
       riskReward: 0,
@@ -120,6 +138,8 @@ export const ANALYSIS_JSON_SCHEMA = {
         direction: { type: "string", enum: ["long", "short", "wait"] },
         entryMin: { type: "number" },
         entryMax: { type: "number" },
+        sniperEntry: { type: "number" },
+        sniperReason: { type: "string" },
         stopLoss: { type: "number" },
         takeProfits: { type: "array", items: { type: "number" } },
         riskReward: { type: "number" },

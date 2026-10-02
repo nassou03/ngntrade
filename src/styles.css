@@ -177,3 +177,10 @@
     scroll-behavior: auto;
   }
 }
+
+
+/* Sniper / premium accents */
+.sniper-glow {
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 35%, transparent),
+    0 12px 40px -12px color-mix(in oklab, var(--accent) 40%, transparent);
+}

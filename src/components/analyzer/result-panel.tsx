@@ -56,7 +56,9 @@ export function ResultPanel({
   const size = useMemo(() => {
     const cap = Number(capital);
     const rp = Number(riskPct);
-    const entry = (analysis.setup.entryMin + analysis.setup.entryMax) / 2;
+    const entry =
+      analysis.setup.sniperEntry ||
+      (analysis.setup.entryMin + analysis.setup.entryMax) / 2;
     const sl = analysis.setup.stopLoss;
     if (!cap || !rp || !entry || !sl || entry === sl) return null;
     const riskAmt = cap * (rp / 100);
@@ -66,7 +68,8 @@ export function ResultPanel({
 
   const planText = [
     `${analysis.symbol} ${analysis.timeframe} — ${DIRECTION_LABELS[dir]} (${BIAS_LABELS[analysis.bias]})`,
-    `Entrée ${formatPrice(analysis.setup.entryMin, d)} – ${formatPrice(analysis.setup.entryMax, d)}`,
+    `Zone ${formatPrice(analysis.setup.entryMin, d)} – ${formatPrice(analysis.setup.entryMax, d)}`,
+    `Sniper ${formatPrice(analysis.setup.sniperEntry || (analysis.setup.entryMin + analysis.setup.entryMax) / 2, d)}${analysis.setup.sniperReason ? ` — ${analysis.setup.sniperReason}` : ""}`,
     `Stop ${formatPrice(analysis.setup.stopLoss, d)}`,
     `TP ${analysis.setup.takeProfits.map((p) => formatPrice(p, d)).join(" / ")}`,
     `R:R ${analysis.setup.riskReward.toFixed(2)}`,
@@ -154,6 +157,42 @@ export function ResultPanel({
           </CardContent>
         </Card>
 
+        <Card className="border-accent/40 bg-gradient-to-br from-accent/10 via-card to-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Target className="size-4 text-accent" />
+              Entrée sniper
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-medium tracking-wide text-subtle uppercase">
+                  Prix chirurgical
+                </p>
+                <p className="mt-1 font-mono text-3xl font-semibold tabular-nums tracking-tight text-accent">
+                  {formatPrice(
+                    analysis.setup.sniperEntry ||
+                      (analysis.setup.entryMin + analysis.setup.entryMax) / 2,
+                    d,
+                  )}
+                </p>
+              </div>
+              <Badge variant="accent">Limit / sniper</Badge>
+            </div>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {analysis.setup.sniperReason?.trim()
+                ? analysis.setup.sniperReason
+                : "Point d’entrée précis dérivé de la zone. Vérifie le retest sur ta plateforme avant d’envoyer l’ordre."}
+            </p>
+            <p className="text-[11px] text-subtle">
+              Zone : {formatPrice(analysis.setup.entryMin, d)} –{" "}
+              {formatPrice(analysis.setup.entryMax, d)} · Stop{" "}
+              {formatPrice(analysis.setup.stopLoss, d)}
+            </p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -165,6 +204,14 @@ export function ResultPanel({
             <Row
               k="Zone d’entrée"
               v={`${formatPrice(analysis.setup.entryMin, d)} – ${formatPrice(analysis.setup.entryMax, d)}`}
+            />
+            <Row
+              k="Sniper"
+              v={formatPrice(
+                analysis.setup.sniperEntry ||
+                  (analysis.setup.entryMin + analysis.setup.entryMax) / 2,
+                d,
+              )}
             />
             <Row k="Stop loss" v={formatPrice(analysis.setup.stopLoss, d)} />
             {analysis.setup.takeProfits.map((tp, i) => (

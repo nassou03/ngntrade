@@ -190,6 +190,10 @@ function buildAnalyzePrompt(input: AnalysisInput) {
     "Interdit : markdown, blocs code, commentaires, texte avant/après le JSON.",
     "Les nombres (prix, scores) doivent être des number JSON, pas des strings.",
     "setup.takeProfits : tableau de 1 à 3 nombres. patterns et risks : tableaux de strings.",
+    "setup.sniperEntry : UN seul prix d'entrée chirurgical (pas une zone). Doit être dans ou collé à entryMin–entryMax.",
+    "setup.sniperReason : 1–2 phrases — pourquoi CE prix (retest FVG, OB, VWAP, equal highs, liquidité, etc.).",
+    "Si direction=wait : sniperEntry = prix idéal d'attente (limit), pas le prix marché actuel.",
+    "Précision sniper : utilise l'échelle visible du graphique (même nombre de décimales que les labels).",
   ];
   if (input.market && input.market !== "auto") {
     parts.push(`Marché déclaré par le trader : ${input.market}.`);

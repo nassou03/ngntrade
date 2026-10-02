@@ -14,6 +14,10 @@ export type ChartSetup = {
   direction: Direction;
   entryMin: number;
   entryMax: number;
+  /** Point d'entrée sniper (chirurgical), dans ou proche de la zone */
+  sniperEntry: number;
+  /** Pourquoi ce prix exact (ordre limit, retest, FVG, etc.) */
+  sniperReason: string;
   stopLoss: number;
   takeProfits: number[];
   riskReward: number;
