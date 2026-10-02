@@ -24,13 +24,17 @@ type LlmResult =
   | { ok: false; error: string; status?: number };
 
 function extractJson(text: string) {
-  const trimmed = text.trim();
-  const start = trimmed.indexOf("{");
-  const end = trimmed.lastIndexOf("}");
-  if (start === -1 || end === -1) {
+  let s = text.trim();
+  // Strip markdown fences ```json ... ```
+  const fence = /^```(?:json|JSON)?\s*\n?([\s\S]*?)\n?```$/m.exec(s);
+  if (fence) s = fence[1].trim();
+  const start = s.indexOf("{");
+  const end = s.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) {
     throw new Error("Réponse IA illisible");
   }
-  return JSON.parse(trimmed.slice(start, end + 1)) as unknown;
+  s = s.slice(start, end + 1);
+  return JSON.parse(s) as unknown;
 }
 
 function parseDataUrl(dataUrl: string): {
@@ -182,7 +186,10 @@ function buildAnalyzePrompt(input: AnalysisInput) {
     "Ce n’est pas un conseil financier : un plan à vérifier avant de risquer du capital.",
     "score = qualité du setup 0-100. confidence = certitude de lecture du graphique 0-100.",
     "takeProfits : 1 à 3 cibles dans le sens du trade. Si direction = wait, fournis tout de même des zones hypothétiques.",
-    "Réponds UNIQUEMENT avec un objet JSON valide (pas de markdown, pas de texte autour).",
+    "Réponds UNIQUEMENT avec un objet JSON valide.",
+    "Interdit : markdown, blocs code, commentaires, texte avant/après le JSON.",
+    "Les nombres (prix, scores) doivent être des number JSON, pas des strings.",
+    "setup.takeProfits : tableau de 1 à 3 nombres. patterns et risks : tableaux de strings.",
   ];
   if (input.market && input.market !== "auto") {
     parts.push(`Marché déclaré par le trader : ${input.market}.`);
@@ -225,7 +232,7 @@ export const analyzeChart = createServerFn({ method: "POST" })
         return { ok: false as const, error: "Image invalide (data URL)" };
       }
       result = await callAnthropic({
-        maxTokens: 2200,
+        maxTokens: 4096,
         temperature: 0.2,
         messages: [
           {
@@ -285,8 +292,16 @@ export const analyzeChart = createServerFn({ method: "POST" })
     if (!result.ok) return { ok: false as const, error: result.error };
 
     try {
-      const parsed = ChartAnalysisSchema.parse(extractJson(result.text));
-      return { ok: true as const, analysis: parsed as ChartAnalysis };
+      const raw = extractJson(result.text);
+      const parsed = ChartAnalysisSchema.safeParse(raw);
+      if (!parsed.success) {
+        return {
+          ok: false as const,
+          error:
+            "L’IA a répondu, mais le plan est incomplet. Réessayez ou changez de capture.",
+        };
+      }
+      return { ok: true as const, analysis: parsed.data as ChartAnalysis };
     } catch {
       return {
         ok: false as const,
