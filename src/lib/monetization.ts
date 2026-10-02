@@ -4,7 +4,7 @@
  * - Marchés : API gratuites
  * - IA : ANTHROPIC_API_KEY (Claude) ou XAI_API_KEY
  * - Affiliés : VITE_AFFILIATE_* (voir PARTNERS)
- * - Premium : page /premium prête ; Stripe plus tard
+ * - Premium : lien externe VITE_PREMIUM_CHECKOUT (Gumroad / Lemon Squeezy / etc.)
  */
 
 export type Partner = {
@@ -33,46 +33,35 @@ function envLink(key: string, fallback: string) {
 }
 
 /**
- * Liens partenaires affichés dans le footer.
- * Configure chaque URL sur Vercel → Environment Variables, puis Redeploy.
- *
- * Variables supportées :
- * - VITE_AFFILIATE_XM
- * - VITE_AFFILIATE_BINANCE
- * - VITE_AFFILIATE_EXNESS
- * - VITE_AFFILIATE_BROKER (générique / autre broker)
- * - VITE_AFFILIATE_PROP
- * - VITE_AFFILIATE_CHART
+ * Lien de paiement Premium (Gumroad, BuyMeACoffee, Lemon Squeezy…).
+ * Vercel → Environment Variables → VITE_PREMIUM_CHECKOUT = https://...
+ * Puis Redeploy.
  */
+export const PREMIUM_CHECKOUT_URL = envLink(
+  "VITE_PREMIUM_CHECKOUT",
+  "",
+);
+
 export const PARTNERS: Partner[] = [
   {
     id: "xm",
     name: "XM",
     blurb: "Broker Forex & CFD — compte démo et exécution.",
-    href: envLink(
-      "VITE_AFFILIATE_XM",
-      "https://www.xm.com",
-    ),
+    href: envLink("VITE_AFFILIATE_XM", "https://www.xm.com"),
     tag: "Forex",
   },
   {
     id: "binance",
     name: "Binance",
     blurb: "Exchange crypto — spot, futures, compte débutant.",
-    href: envLink(
-      "VITE_AFFILIATE_BINANCE",
-      "https://www.binance.com",
-    ),
+    href: envLink("VITE_AFFILIATE_BINANCE", "https://www.binance.com"),
     tag: "Crypto",
   },
   {
     id: "exness",
     name: "Exness",
     blurb: "Broker Forex & CFD — exécution et compte démo.",
-    href: envLink(
-      "VITE_AFFILIATE_EXNESS",
-      "https://www.exness.com",
-    ),
+    href: envLink("VITE_AFFILIATE_EXNESS", "https://www.exness.com"),
     tag: "Forex",
   },
   {
@@ -104,36 +93,43 @@ export const PARTNERS: Partner[] = [
   },
 ];
 
+/** Partenaires mis en avant sur la page Premium (les 3 brokers principaux). */
+export const PREMIUM_PARTNERS = PARTNERS.filter((p) =>
+  ["xm", "binance", "exness"].includes(p.id),
+);
+
 export const PLANS: Plan[] = [
   {
     id: "free",
     name: "Gratuit",
-    tagline: "Pour démarrer et apprendre.",
+    tagline: "Pour démarrer et apprendre — sans carte bancaire.",
     priceLabel: "0 €",
     features: [
       "Marchés live (forex, crypto, matières, indices)",
-      "Journal et dashboard locaux",
+      "Analyzer IA selon tes crédits Claude / xAI",
+      "Journal et performance (local)",
       "Calendrier de sessions",
-      "Analyses IA selon tes crédits xAI",
       "Copilote de session",
+      "Liens partenaires brokers",
     ],
   },
   {
     id: "premium",
     name: "Premium",
-    tagline: "Quand le trafic et les affiliations tournent.",
+    tagline: "Pack outils MT5 + support contenu — paiement externe.",
     priceLabel: "9,90 €",
     period: "mois",
     highlighted: true,
     features: [
       "Tout le plan Gratuit",
-      "EA SMC MultiSetup PRO v5.30 (fichier MT5)",
-      "Quota d’analyses IA inclus (à brancher)",
-      "Historique cloud (auth + DB plus tard)",
-      "Priorité de traitement",
+      "EA SMC MultiSetup PRO v5.30 (.mq5)",
+      "Guide d’installation MetaTrader 5",
+      "Paramètres recommandés (risque / sessions)",
+      "Mises à jour du bot quand disponibles",
+      "Accès prioritaire aux nouveaux outils",
     ],
   },
 ];
 
 export const LEGAL_DISCLAIMER =
-  "Ngntrade fournit une aide à la lecture technique à but éducatif. Ce n’est pas un conseil en investissement, ni une recommandation d’achat ou de vente. Les marchés comportent un risque de perte en capital. Vous restez seul responsable de vos décisions.";
+  "Ngntrade fournit une aide à la lecture technique à but éducatif. Ce n’est pas un conseil en investissement, ni une recommandation d’achat ou de vente. Les marchés comportent un risque de perte en capital. Les liens affiliés peuvent générer une commission pour Ngntrade sans coût supplémentaire pour vous. L’EA MT5 place des ordres s’il est activé en réel : backtest et compte démo obligatoires. Vous restez seul responsable de vos décisions.";
