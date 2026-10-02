@@ -6,7 +6,7 @@ import type { AnalysisInput, ChartAnalysis, CopilotTone } from "./types";
 const XAI_MODEL = process.env.XAI_MODEL?.trim() || "grok-4.5";
 /** Claude vision (si ANTHROPIC_API_KEY) — modèle configurable */
 const ANTHROPIC_MODEL =
-  process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-4-5-20250929";
+  process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5";
 
 type AnalyzePayload = {
   imageDataUrl: string;
@@ -78,8 +78,8 @@ async function callAnthropic(opts: {
       body: JSON.stringify({
         model: ANTHROPIC_MODEL,
         max_tokens: opts.maxTokens,
-        temperature: opts.temperature ?? 0.2,
-        system: opts.system,
+        // temperature retiré : déprécié sur Claude 5.x / Sonnet 5.5
+        ...(opts.system ? { system: opts.system } : {}),
         messages: opts.messages,
       }),
       signal: controller.signal,
