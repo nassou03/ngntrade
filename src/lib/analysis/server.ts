@@ -294,18 +294,23 @@ export const analyzeChart = createServerFn({ method: "POST" })
     try {
       const raw = extractJson(result.text);
       const parsed = ChartAnalysisSchema.safeParse(raw);
-      if (!parsed.success) {
-        return {
-          ok: false as const,
-          error:
-            "L’IA a répondu, mais le plan est incomplet. Réessayez ou changez de capture.",
-        };
+      if (parsed.success) {
+        return { ok: true as const, analysis: parsed.data as ChartAnalysis };
       }
-      return { ok: true as const, analysis: parsed.data as ChartAnalysis };
+      // Dernier recours : forcer les défauts du schéma (très tolérant)
+      const forced = ChartAnalysisSchema.parse({
+        ...(typeof raw === "object" && raw ? raw : {}),
+        setup:
+          typeof raw === "object" && raw && "setup" in raw
+            ? (raw as { setup: unknown }).setup
+            : {},
+      });
+      return { ok: true as const, analysis: forced as ChartAnalysis };
     } catch {
       return {
         ok: false as const,
-        error: "L’IA n’a pas renvoyé un plan exploitable. Réessayez.",
+        error:
+          "L’IA a répondu, mais le plan est incomplet. Réessayez ou changez de capture.",
       };
     }
   });
