@@ -55,10 +55,15 @@ const envEarly = (key: string): string | undefined => {
 
 // Only bootstrap embedded PGLite when auth is actually on (or a real DB URL exists).
 // On Vercel without DATABASE_URL, forcing PGLite often causes a 500 on every request.
-const authOffEarly = envEarly("VITE_AUTH_ENABLED") === "false";
+// Vercel without DATABASE_URL: do not boot embedded PGLite (causes 500).
+// PGLite is for local/preview only. Auth stays off unless VITE_AUTH_ENABLED=true + DB.
+const authOffEarly =
+  envEarly("VITE_AUTH_ENABLED") !== "true"; // default = off
 const hasDatabaseUrl = Boolean(envEarly("DATABASE_URL"));
-if (!authOffEarly || hasDatabaseUrl) {
+if (!authOffEarly && hasDatabaseUrl) {
   void ensureDbReady();
+} else if (!authOffEarly && !hasDatabaseUrl && !envEarly("VERCEL")) {
+  void ensureDbReady(); // local / non-Vercel preview only
 }
 
 /**
