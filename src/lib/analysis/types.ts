@@ -10,6 +10,16 @@ export type Bias = (typeof BIASES)[number];
 export const DIRECTIONS = ["long", "short", "wait"] as const;
 export type Direction = (typeof DIRECTIONS)[number];
 
+export type ImageQuality = {
+  /** 0–100 : fiabilité de la lecture sur CETTE capture */
+  score: number;
+  axesVisible: boolean;
+  timeframeReadable: boolean;
+  levelsReadable: boolean;
+  tradeability: "high" | "medium" | "low";
+  notes: string;
+};
+
 export type ChartSetup = {
   direction: Direction;
   entryMin: number;
@@ -40,6 +50,7 @@ export type ChartAnalysis = {
   rationale: string;
   risks: string[];
   sessionNotes: string;
+  imageQuality: ImageQuality;
 };
 
 export type AnalysisInput = {

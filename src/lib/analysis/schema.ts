@@ -111,6 +111,30 @@ export const ChartAnalysisSchema = z.object({
   rationale: str(2500).pipe(z.string().min(1)).catch("Analyse partielle."),
   risks: strArr.pipe(z.array(z.string().max(240)).max(8)).catch([]),
   sessionNotes: str(600).catch(""),
+  imageQuality: z
+    .object({
+      score: num.pipe(z.number().min(0).max(100)).catch(50),
+      axesVisible: z.preprocess((v) => Boolean(v), z.boolean()).catch(true),
+      timeframeReadable: z.preprocess((v) => Boolean(v), z.boolean()).catch(true),
+      levelsReadable: z.preprocess((v) => Boolean(v), z.boolean()).catch(true),
+      tradeability: z
+        .preprocess((v) => {
+          const s = String(v ?? "").toLowerCase();
+          if (s.includes("high") || s.includes("élev") || s.includes("elev")) return "high";
+          if (s.includes("low") || s.includes("faible")) return "low";
+          return "medium";
+        }, z.enum(["high", "medium", "low"]))
+        .catch("medium"),
+      notes: str(400).catch(""),
+    })
+    .catch({
+      score: 50,
+      axesVisible: true,
+      timeframeReadable: true,
+      levelsReadable: true,
+      tradeability: "medium" as const,
+      notes: "Qualité image non évaluée en détail.",
+    }),
 });
 
 export const ANALYSIS_JSON_SCHEMA = {

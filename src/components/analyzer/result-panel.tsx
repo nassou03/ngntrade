@@ -99,7 +99,72 @@ export function ResultPanel({
     toast.success("Setup ajouté au journal");
   }
 
+  const iq = analysis.imageQuality ?? {
+    score: 50,
+    axesVisible: true,
+    timeframeReadable: true,
+    levelsReadable: true,
+    tradeability: "medium" as const,
+    notes: "",
+  };
+  const iqLabel =
+    iq.tradeability === "high"
+      ? "Capture solide"
+      : iq.tradeability === "low"
+        ? "Capture faible"
+        : "Capture moyenne";
+
   return (
+    <div className="space-y-4">
+      <Card
+        className={
+          iq.tradeability === "high"
+            ? "border-emerald-500/30 bg-emerald-500/5"
+            : iq.tradeability === "low"
+              ? "border-amber-500/40 bg-amber-500/5"
+              : "border-border bg-card"
+        }
+      >
+        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <p className="text-[11px] font-medium tracking-wide text-subtle uppercase">
+              Qualité de la capture
+            </p>
+            <p className="font-display text-lg font-semibold tracking-tight">
+              {iqLabel}{" "}
+              <span className="font-mono text-base text-muted-foreground tabular-nums">
+                {Math.round(iq.score)}/100
+              </span>
+            </p>
+            <p className="max-w-xl text-sm text-muted-foreground">
+              {iq.notes?.trim()
+                ? iq.notes
+                : "Ce score mesure la lisibilité de l'image (axes, TF, niveaux), pas la probabilité de gagner le trade."}
+            </p>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              <Badge variant={iq.axesVisible ? "outline" : "bear"}>
+                Axes {iq.axesVisible ? "OK" : "manquants"}
+              </Badge>
+              <Badge variant={iq.timeframeReadable ? "outline" : "bear"}>
+                TF {iq.timeframeReadable ? "lisible" : "flou"}
+              </Badge>
+              <Badge variant={iq.levelsReadable ? "outline" : "bear"}>
+                Niveaux {iq.levelsReadable ? "OK" : "difficiles"}
+              </Badge>
+            </div>
+          </div>
+          {iq.tradeability === "low" ? (
+            <p className="max-w-xs text-xs text-amber-200/90">
+              Sniper à prendre avec prudence. Recapture avec prix + temps visibles et moins de zoom.
+            </p>
+          ) : (
+            <p className="max-w-xs text-[11px] text-subtle">
+              Lecture éducative. Vérifie toujours sur ta plateforme avant d'engager du capital.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
     <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
       <div className="space-y-4">
         <Card className="p-0">
@@ -340,6 +405,7 @@ export function ResultPanel({
           </CardContent>
         </Card>
       </div>
+    </div>
     </div>
   );
 }

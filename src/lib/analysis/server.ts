@@ -205,6 +205,11 @@ function buildAnalyzePrompt(input: AnalysisInput) {
     "3) TP3 = objectif ambitieux mais visible sur le graphique (pas inventé hors échelle).",
     "4) Les TP doivent s'aligner sur supports/résistances listés ; éviter des TP collés trop près du sniper.",
     "5) Si le SL est large, accepte un R:R TP1 plus modeste (1–1,5) plutôt qu'un SL irréaliste.",
+    "imageQuality (OBLIGATOIRE) : évalue UNIQUEMENT la capture, pas le marché.",
+    "imageQuality.score 0–100 : axes prix+temps visibles ? TF lisible ? niveaux/échelle clairs ? zoom correct ?",
+    "tradeability high si score≥75 et axes OK ; medium 50–74 ; low <50 ou axes manquants.",
+    "Si axes absents ou image floue : baisse confidence ET imageQuality.score, notes explicites.",
+    "Ne promets jamais un winrate ; score = qualité de LECTURE de l'image.",
   ];
   if (input.market && input.market !== "auto") {
     parts.push(`Marché déclaré par le trader : ${input.market}.`);
