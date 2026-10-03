@@ -194,6 +194,17 @@ function buildAnalyzePrompt(input: AnalysisInput) {
     "setup.sniperReason : 1–2 phrases — pourquoi CE prix (retest FVG, OB, VWAP, equal highs, liquidité, etc.).",
     "Si direction=wait : sniperEntry = prix idéal d'attente (limit), pas le prix marché actuel.",
     "Précision sniper : utilise l'échelle visible du graphique (même nombre de décimales que les labels).",
+    "STOP LOSS — règles strictes :",
+    "1) Place le SL AU-DELÀ d'une structure claire (swing, extrémité de range, bande VWAP externe, equal highs/lows), PAS juste sous la dernière mèche.",
+    "2) Ajoute une marge de sécurité (buffer) : ~0,15–0,35 % du prix pour crypto/indices majeurs, ou 1–1,5× l'amplitude moyenne des bougies visibles sur le TF.",
+    "3) Interdit : SL trop serré qui serait touché par le bruit normal du TF (ex. < 0,25 % sur BTC 15m sans structure).",
+    "4) Distance sniper→SL doit permettre un R:R réaliste SANS compresser le stop artificiellement.",
+    "TAKE PROFITS — règles strictes :",
+    "1) TP1 = premier niveau de structure / liquidité (réaction probable), souvent ~1R à 1,5R après un SL correct.",
+    "2) TP2 = extension (sommet/creux de range, VWAP session précédente, niveau rond).",
+    "3) TP3 = objectif ambitieux mais visible sur le graphique (pas inventé hors échelle).",
+    "4) Les TP doivent s'aligner sur supports/résistances listés ; éviter des TP collés trop près du sniper.",
+    "5) Si le SL est large, accepte un R:R TP1 plus modeste (1–1,5) plutôt qu'un SL irréaliste.",
   ];
   if (input.market && input.market !== "auto") {
     parts.push(`Marché déclaré par le trader : ${input.market}.`);
