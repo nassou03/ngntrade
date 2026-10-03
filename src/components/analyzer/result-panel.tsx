@@ -143,13 +143,13 @@ export function ResultPanel({
             </p>
             <div className="flex flex-wrap gap-1.5 pt-1">
               <Badge variant={iq.axesVisible ? "outline" : "bear"}>
-                Axes {iq.axesVisible ? "OK" : "manquants"}
+                {iq.axesVisible ? "Axes OK" : "Axes manquants"}
               </Badge>
               <Badge variant={iq.timeframeReadable ? "outline" : "bear"}>
-                TF {iq.timeframeReadable ? "lisible" : "flou"}
+                {iq.timeframeReadable ? "TF lisible" : "TF flou"}
               </Badge>
               <Badge variant={iq.levelsReadable ? "outline" : "bear"}>
-                Niveaux {iq.levelsReadable ? "OK" : "difficiles"}
+                {iq.levelsReadable ? "Niveaux OK" : "Niveaux partiels"}
               </Badge>
             </div>
           </div>

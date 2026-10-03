@@ -23,6 +23,61 @@ type LlmResult =
   | { ok: true; text: string; provider: "anthropic" | "xai" }
   | { ok: false; error: string; status?: number };
 
+
+function reconcileImageQuality<T extends { imageQuality?: {
+  score: number;
+  axesVisible: boolean;
+  timeframeReadable: boolean;
+  levelsReadable: boolean;
+  tradeability: "high" | "medium" | "low";
+  notes: string;
+}; confidence?: number }>(analysis: T): T {
+  const q = analysis.imageQuality;
+  if (!q) return analysis;
+  const notes = (q.notes || "").toLowerCase();
+  const neg =
+    /manqu|absent|illisible|flou|caché|cache|inexploit|trop zoom|sans axe/.test(
+      notes,
+    );
+  const pos =
+    /lisible|visible|affiché|affiche|clair|nett|présent|present/.test(notes);
+  let score = Math.max(0, Math.min(100, Number(q.score) || 50));
+  let axesVisible = q.axesVisible;
+  let timeframeReadable = q.timeframeReadable;
+  let levelsReadable = q.levelsReadable;
+  if (score >= 70 && pos && !neg) {
+    axesVisible = true;
+    timeframeReadable = true;
+    levelsReadable = true;
+  }
+  if (score >= 75 && !neg) {
+    axesVisible = true;
+    timeframeReadable = true;
+    levelsReadable = true;
+    if (/partiel|masqué|masque|approxim/.test(notes)) {
+      levelsReadable = false;
+      score = Math.min(score, 85);
+    }
+  }
+  if (neg && score >= 80) {
+    score = Math.min(score, 72);
+  }
+  let tradeability: "high" | "medium" | "low" = "medium";
+  if (score >= 75 && axesVisible) tradeability = "high";
+  else if (score < 50 || !axesVisible) tradeability = "low";
+  return {
+    ...analysis,
+    imageQuality: {
+      ...q,
+      score,
+      axesVisible,
+      timeframeReadable,
+      levelsReadable,
+      tradeability,
+    },
+  };
+}
+
 function extractJson(text: string) {
   let s = text.trim();
   // Strip markdown fences ```json ... ```
@@ -315,7 +370,8 @@ export const analyzeChart = createServerFn({ method: "POST" })
       const raw = extractJson(result.text);
       const parsed = ChartAnalysisSchema.safeParse(raw);
       if (parsed.success) {
-        return { ok: true as const, analysis: parsed.data as ChartAnalysis };
+        const analysis = reconcileImageQuality(parsed.data) as ChartAnalysis;
+        return { ok: true as const, analysis };
       }
       // Dernier recours : forcer les défauts du schéma (très tolérant)
       const forced = ChartAnalysisSchema.parse({
@@ -325,7 +381,7 @@ export const analyzeChart = createServerFn({ method: "POST" })
             ? (raw as { setup: unknown }).setup
             : {},
       });
-      return { ok: true as const, analysis: forced as ChartAnalysis };
+      return { ok: true as const, analysis: reconcileImageQuality(forced) as ChartAnalysis };
     } catch {
       return {
         ok: false as const,
