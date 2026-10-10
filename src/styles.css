@@ -184,3 +184,30 @@
   box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 35%, transparent),
     0 12px 40px -12px color-mix(in oklab, var(--accent) 40%, transparent);
 }
+
+/* Design phase 2 */
+.header-bar {
+  box-shadow: 0 1px 0 color-mix(in oklab, var(--color-border) 80%, transparent),
+    0 12px 40px -28px rgba(0, 0, 0, 0.65);
+}
+
+.nav-pill-active {
+  background: color-mix(in oklab, var(--color-accent) 16%, var(--color-elevated));
+  color: var(--color-foreground);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-accent) 35%, transparent);
+}
+
+.hero-mesh {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 0%, color-mix(in oklab, #3b82f6 18%, transparent), transparent 55%),
+    radial-gradient(ellipse 60% 50% at 90% 10%, color-mix(in oklab, #3ecf8e 12%, transparent), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 50% 100%, color-mix(in oklab, #8ec5ff 8%, transparent), transparent 45%);
+}
+
+.step-line {
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--color-accent) 40%, transparent),
+    color-mix(in oklab, var(--color-border) 80%, transparent)
+  );
+}

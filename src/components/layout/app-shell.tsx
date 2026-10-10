@@ -54,8 +54,8 @@ function NavLinks({
               "inline-flex items-center gap-2 rounded-full px-3 text-sm font-medium transition-all duration-quick ease-smooth",
               compact ? "h-11 justify-start" : "h-9",
               active
-                ? "bg-foreground text-background shadow-sm"
-                : "text-muted-foreground hover:bg-elevated hover:text-foreground",
+                ? "nav-pill-active"
+                : "text-muted-foreground hover:bg-elevated/80 hover:text-foreground",
             )}
           >
             <Icon className={cn("size-3.5", active && "opacity-90")} />
@@ -76,32 +76,39 @@ export function AppShell({ children }: { children: ReactNode }) {
       }),
   );
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isHome = pathname === "/";
 
   return (
     <QueryClientProvider client={queryClient}>
       <div className="flex min-h-dvh flex-col bg-background text-foreground">
-        <header className="sticky top-0 z-40 border-b border-border/80 glass-strong">
-          <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
-            <Link to="/" className="shrink-0 transition-opacity hover:opacity-90" aria-label="Ngntrade — accueil">
+        <header className="header-bar sticky top-0 z-40 border-b border-border/70 glass-strong">
+          <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 md:h-16">
+            <Link
+              to="/"
+              className="shrink-0 transition-opacity hover:opacity-90"
+              aria-label="Ngntrade — accueil"
+            >
               <Logo />
             </Link>
-            <div className="hidden flex-1 md:flex md:justify-center">
-              {!isHome ? <NavLinks /> : null}
+            <div className="hidden min-w-0 flex-1 justify-center md:flex">
+              <NavLinks />
             </div>
             <div className="ml-auto flex items-center gap-2">
-              {isHome ? (
-                <Button asChild size="sm" variant="ghost" className="hidden md:inline-flex">
-                  <Link to="/markets">Marchés</Link>
-                </Button>
-              ) : null}
-              <Button asChild size="sm" variant="outline" className="hidden sm:inline-flex border-border/80">
+              <Button
+                asChild
+                size="sm"
+                variant="outline"
+                className="hidden border-border/80 sm:inline-flex"
+              >
                 <Link to="/premium">
                   <Sparkles className="size-3.5 text-accent" />
                   Premium
                 </Link>
               </Button>
-              <Button asChild size="sm" className="shadow-[0_0_20px_-6px_color-mix(in_oklab,var(--color-accent)_40%,transparent)]">
+              <Button
+                asChild
+                size="sm"
+                className="shadow-[0_0_24px_-6px_color-mix(in_oklab,var(--color-accent)_45%,transparent)]"
+              >
                 <Link to="/analyzer">
                   <Plus className="size-4" />
                   <span className="hidden sm:inline">Nouvelle analyse</span>
@@ -119,13 +126,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Button>
             </div>
           </div>
-          {isHome ? (
-            <div className="hidden border-t border-border/50 md:block">
-              <div className="mx-auto flex max-w-6xl justify-center py-2">
-                <NavLinks />
-              </div>
-            </div>
-          ) : null}
         </header>
 
         <Sheet open={open} onOpenChange={setOpen}>
@@ -148,8 +148,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Mobile bottom nav */}
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 glass-strong md:hidden">
           <div className="mx-auto flex max-w-lg items-stretch justify-between px-1 py-1">
-            {NAV.slice(0, 5).map((item) => {
-              const active = pathname === item.to;
+            {NAV.filter((item) =>
+              ["/analyzer", "/markets", "/journal", "/dashboard", "/copilot"].includes(
+                item.to,
+              ),
+            ).map((item) => {
+              const active =
+                pathname === item.to || pathname.startsWith(item.to + "/");
               const Icon = item.icon;
               return (
                 <Link
