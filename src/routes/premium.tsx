@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import {
   Check,
   Download,
@@ -6,15 +7,21 @@ import {
   AlertTriangle,
   ExternalLink,
   Gift,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input, Label } from "@/components/ui/input";
 import {
   PLANS,
   LEGAL_DISCLAIMER,
   PREMIUM_CHECKOUT_URL,
   PREMIUM_PARTNERS,
+  PREMIUM_ACCESS_CODE,
+  PREMIUM_STORAGE_KEY,
 } from "@/lib/monetization";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/premium")({ component: PremiumPage });
 
@@ -29,8 +36,53 @@ const EA_PARAMS = [
   { name: "Timeframe biais", value: "H1 (EMA 50)" },
 ];
 
+function readUnlocked(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(PREMIUM_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 function PremiumPage() {
   const hasCheckout = Boolean(PREMIUM_CHECKOUT_URL.trim());
+  const hasAccessCode = Boolean(PREMIUM_ACCESS_CODE.trim());
+  const [unlocked, setUnlocked] = useState(false);
+  const [code, setCode] = useState("");
+
+  useEffect(() => {
+    setUnlocked(readUnlocked());
+  }, []);
+
+  function unlockWithCode() {
+    const expected = PREMIUM_ACCESS_CODE.trim();
+    if (!expected) {
+      toast.error("Code d’accès non configuré côté serveur.");
+      return;
+    }
+    if (code.trim() === expected) {
+      try {
+        window.localStorage.setItem(PREMIUM_STORAGE_KEY, "1");
+      } catch {
+        /* ignore */
+      }
+      setUnlocked(true);
+      toast.success("Premium débloqué sur cet appareil");
+    } else {
+      toast.error("Code incorrect");
+    }
+  }
+
+  function lockAgain() {
+    try {
+      window.localStorage.removeItem(PREMIUM_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+    setUnlocked(false);
+    toast.message("Contenu Premium verrouillé à nouveau");
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 pb-28 md:pb-12">
@@ -39,12 +91,13 @@ function PremiumPage() {
         Premium & partenaires
       </h1>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-        L&apos;app reste gratuite. Premium regroupe le pack MT5 (EA SMC + guide).
-        Les liens brokers peuvent soutenir le projet via affiliation — sans
-        frais pour toi.
+        L&apos;app de base reste gratuite. Premium est{" "}
+        <strong className="font-medium text-foreground/90">réservé aux abonnés</strong>{" "}
+        : tu vois ce qui est inclus, le contenu complet (EA, guide, paramètres)
+        s&apos;ouvre après paiement.
       </p>
 
-      {/* Plans */}
+      {/* Plans — always visible (teaser) */}
       <div className="mt-8 grid gap-4 md:grid-cols-2">
         {PLANS.map((plan) => (
           <article
@@ -92,17 +145,18 @@ function PremiumPage() {
                   rel="noopener noreferrer"
                 >
                   <ExternalLink className="size-4" />
-                  Obtenir Premium
+                  S&apos;abonner — ouvrir le paiement
                 </a>
               </Button>
             ) : (
               <div className="mt-6 space-y-2">
                 <Button className="w-full" disabled>
-                  Lien de paiement à configurer
+                  Paiement bientôt disponible
                 </Button>
                 <p className="text-center text-[11px] text-subtle">
-                  Ajoute <code className="text-[10px]">VITE_PREMIUM_CHECKOUT</code>{" "}
-                  sur Vercel (URL Gumroad), puis Redeploy.
+                  Configure{" "}
+                  <code className="text-[10px]">VITE_PREMIUM_CHECKOUT</code> sur
+                  Vercel pour activer le lien.
                 </p>
               </div>
             )}
@@ -110,21 +164,175 @@ function PremiumPage() {
         ))}
       </div>
 
-      {/* Affiliation */}
-      <section className="mt-12">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="section-kicker">Affiliation</p>
-            <h2 className="mt-1 font-display text-xl font-semibold tracking-tight">
-              Ouvrir un compte chez un partenaire
+      {/* Locked vs unlocked content */}
+      {!unlocked ? (
+        <section className="relative mt-12 overflow-hidden rounded-2xl border border-border/80 bg-card/90">
+          <div className="pointer-events-none select-none p-6 blur-[2px] md:p-8" aria-hidden>
+            <p className="section-kicker">MetaTrader 5</p>
+            <h2 className="mt-1 font-display text-2xl font-semibold">
+              EA SMC MultiSetup PRO v5.30
             </h2>
-            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-              Liens utiles pour trader. Si tu t&apos;inscris via ces boutons,
-              Ngntrade peut recevoir une commission — le prix pour toi ne change
-              pas.
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+              Fichier .mq5, guide d&apos;installation, paramètres recommandés et
+              mises à jour — réservés aux membres Premium.
             </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {EA_PARAMS.slice(0, 4).map((p) => (
+                <div
+                  key={p.name}
+                  className="rounded-xl border border-border bg-elevated/50 px-3 py-2"
+                >
+                  <p className="text-[11px] text-subtle">{p.name}</p>
+                  <p className="mt-0.5 font-mono text-sm">••••</p>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+          <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-[2px]">
+            <div className="mx-4 max-w-md rounded-2xl border border-border/80 bg-card p-6 text-center shadow-lg">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-accent/30 bg-accent/10">
+                <Lock className="size-5 text-accent" />
+              </div>
+              <h3 className="mt-4 font-display text-lg font-semibold">
+                Contenu Premium verrouillé
+              </h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Téléchargement EA, guide et paramètres détaillés : uniquement
+                après abonnement. Tu peux déjà voir la liste des avantages
+                ci-dessus.
+              </p>
+              {hasCheckout ? (
+                <Button asChild className="mt-5 w-full">
+                  <a
+                    href={PREMIUM_CHECKOUT_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="size-4" />
+                    Payer et s&apos;abonner
+                  </a>
+                </Button>
+              ) : null}
+              {hasAccessCode ? (
+                <div className="mt-5 space-y-2 border-t border-border/60 pt-5 text-left">
+                  <Label htmlFor="premium-code">Déjà abonné ? Entre ton code</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="premium-code"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value)}
+                      placeholder="Code reçu après paiement"
+                      autoComplete="off"
+                    />
+                    <Button type="button" onClick={unlockWithCode}>
+                      <Unlock className="size-4" />
+                      OK
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-subtle">
+                    Le code est envoyé après l&apos;achat (email / message).
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-4 text-[11px] text-subtle">
+                  Après configuration du code d&apos;accès (
+                  <code className="text-[10px]">VITE_PREMIUM_ACCESS_CODE</code>
+                  ), les abonnés pourront débloquer ici.
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+      ) : (
+        <section className="mt-12 rounded-2xl border border-border/80 bg-card/90 p-6 shadow-sm md:p-8">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="section-kicker">MetaTrader 5 · Débloqué</p>
+              <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight">
+                EA SMC MultiSetup PRO v5.30
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                Expert Advisor pour <strong>MetaTrader 5 uniquement</strong>.
+                Logique SMC : biais H1, FVG / retest, risque en %, TP partiel,
+                break-even auto, sessions Londres / New York.
+              </p>
+              <p className="mt-2 flex items-start gap-2 text-sm text-muted-foreground">
+                <Gift className="mt-0.5 size-4 shrink-0 text-accent" />
+                <span>
+                  Accès membre : fichier .mq5, guide résumé et paramètres
+                  recommandés.
+                </span>
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button asChild>
+                <a href="/downloads/SMC_MultiSetup_PRO_v5_30.mq5" download>
+                  <Download className="size-4" />
+                  Télécharger le .mq5
+                </a>
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={lockAgain}>
+                Verrouiller sur cet appareil
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {EA_PARAMS.map((p) => (
+              <div
+                key={p.name}
+                className="rounded-xl border border-border bg-elevated/50 px-3 py-2"
+              >
+                <p className="text-[11px] text-subtle">{p.name}</p>
+                <p className="mt-0.5 font-mono text-sm tabular-nums">{p.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 space-y-2 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">Installation (résumé)</p>
+            <ol className="list-decimal space-y-1 pl-5">
+              <li>
+                Ouvre MetaTrader 5 → dossier{" "}
+                <code className="text-xs">MQL5/Experts</code>
+              </li>
+              <li>
+                Copie{" "}
+                <code className="text-xs">SMC_MultiSetup_PRO_v5_30.mq5</code>
+              </li>
+              <li>Compile dans MetaEditor (F7)</li>
+              <li>Attache l&apos;EA sur un graphique</li>
+              <li>
+                Active le trading algo + teste d&apos;abord en{" "}
+                <strong>compte démo</strong>
+              </li>
+            </ol>
+          </div>
+
+          <div className="mt-6 flex gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+            <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-500" />
+            <div className="space-y-1 text-muted-foreground">
+              <p className="font-medium text-foreground">Avertissement</p>
+              <p>
+                Cet EA place des ordres réels s&apos;il est activé en réel. Ce
+                n&apos;est <strong>pas</strong> un conseil d&apos;investissement.
+                Backtest et démo obligatoires.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Affiliation — public (revenu passif) */}
+      <section className="mt-12">
+        <p className="section-kicker">Affiliation</p>
+        <h2 className="mt-1 font-display text-xl font-semibold tracking-tight">
+          Ouvrir un compte chez un partenaire
+        </h2>
+        <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+          Liens publics. Si tu t&apos;inscris via ces boutons, Ngntrade peut
+          recevoir une commission — le prix pour toi ne change pas.
+        </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
           {PREMIUM_PARTNERS.map((p) => (
             <a
@@ -142,82 +350,6 @@ function PremiumPage() {
               <p className="mt-1 text-sm text-muted-foreground">{p.blurb}</p>
             </a>
           ))}
-        </div>
-      </section>
-
-      {/* EA SMC */}
-      <section className="mt-12 rounded-2xl border border-border/80 bg-card/90 p-6 shadow-sm md:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="section-kicker">MetaTrader 5</p>
-            <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight">
-              EA SMC MultiSetup PRO v5.30
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              Expert Advisor pour <strong>MetaTrader 5 uniquement</strong>. Il
-              ne s&apos;exécute pas dans le navigateur. Logique SMC : biais H1,
-              FVG / retest, risque en %, TP partiel, break-even auto, sessions
-              Londres / New York.
-            </p>
-            <p className="mt-2 flex items-start gap-2 text-sm text-muted-foreground">
-              <Gift className="mt-0.5 size-4 shrink-0 text-accent" />
-              <span>
-                Téléchargement disponible ici. Le pack Premium (paiement
-                externe) ajoute le guide et le suivi des mises à jour.
-              </span>
-            </p>
-          </div>
-          <Button asChild>
-            <a href="/downloads/SMC_MultiSetup_PRO_v5_30.mq5" download>
-              <Download className="size-4" />
-              Télécharger le .mq5
-            </a>
-          </Button>
-        </div>
-
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {EA_PARAMS.map((p) => (
-            <div
-              key={p.name}
-              className="rounded-xl border border-border bg-elevated/50 px-3 py-2"
-            >
-              <p className="text-[11px] text-subtle">{p.name}</p>
-              <p className="mt-0.5 font-mono text-sm tabular-nums">{p.value}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-6 space-y-2 text-sm text-muted-foreground">
-          <p className="font-medium text-foreground">Installation (résumé)</p>
-          <ol className="list-decimal space-y-1 pl-5">
-            <li>
-              Ouvre MetaTrader 5 → dossier{" "}
-              <code className="text-xs">MQL5/Experts</code>
-            </li>
-            <li>
-              Copie le fichier{" "}
-              <code className="text-xs">SMC_MultiSetup_PRO_v5_30.mq5</code>
-            </li>
-            <li>Compile dans MetaEditor (F7)</li>
-            <li>Attache l&apos;EA sur un graphique</li>
-            <li>
-              Active le trading algo + teste d&apos;abord en{" "}
-              <strong>compte démo</strong>
-            </li>
-          </ol>
-        </div>
-
-        <div className="mt-6 flex gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
-          <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-500" />
-          <div className="space-y-1 text-muted-foreground">
-            <p className="font-medium text-foreground">Avertissement important</p>
-            <p>
-              Cet EA place des ordres réels s&apos;il est activé en réel. Ce
-              n&apos;est <strong>pas</strong> un conseil d&apos;investissement.
-              Aucun bot ne garantit de gains. Risque de perte en capital.
-              Backtest et démo obligatoires avant tout compte réel.
-            </p>
-          </div>
         </div>
       </section>
 

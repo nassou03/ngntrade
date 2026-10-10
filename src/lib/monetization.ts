@@ -42,6 +42,17 @@ export const PREMIUM_CHECKOUT_URL = envLink(
   "",
 );
 
+/**
+ * Code d'accès livré après achat (email Gumroad / message manuel).
+ * Vercel → VITE_PREMIUM_ACCESS_CODE = ton-code-secret
+ */
+export const PREMIUM_ACCESS_CODE = envLink(
+  "VITE_PREMIUM_ACCESS_CODE",
+  "",
+);
+
+export const PREMIUM_STORAGE_KEY = "ngn_premium_unlocked";
+
 export const PARTNERS: Partner[] = [
   {
     id: "xm",
