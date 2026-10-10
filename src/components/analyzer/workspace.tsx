@@ -317,23 +317,3 @@ function Chip({
     </button>
   );
 }
-: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "h-9 rounded-full px-3 text-xs font-medium transition-colors duration-quick",
-        active
-          ? "bg-primary text-primary-foreground"
-          : "bg-elevated text-muted-foreground hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
