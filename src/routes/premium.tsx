@@ -34,16 +34,14 @@ function PremiumPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 pb-28 md:pb-12">
-      <p className="text-xs font-medium tracking-wide text-accent uppercase">
-        Offre
-      </p>
-      <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">
+      <p className="section-kicker">Offre</p>
+      <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">
         Premium & partenaires
       </h1>
-      <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-        L&apos;app reste utilisable gratuitement. Premium regroupe le pack MT5
-        (EA SMC + guide). Les liens brokers ci-dessous peuvent soutenir le
-        projet via affiliation — sans frais pour toi.
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+        L&apos;app reste gratuite. Premium regroupe le pack MT5 (EA SMC + guide).
+        Les liens brokers peuvent soutenir le projet via affiliation — sans
+        frais pour toi.
       </p>
 
       {/* Plans */}
@@ -53,8 +51,8 @@ function PremiumPage() {
             key={plan.id}
             className={
               plan.highlighted
-                ? "relative rounded-2xl border border-accent/50 bg-card p-6"
-                : "rounded-2xl border border-border bg-card p-6"
+                ? "card-lift relative rounded-2xl border border-accent/45 bg-gradient-to-br from-accent/10 via-card to-card p-6 shadow-sm"
+                : "card-lift rounded-2xl border border-border/80 bg-card/90 p-6"
             }
           >
             {plan.highlighted ? (
@@ -116,9 +114,7 @@ function PremiumPage() {
       <section className="mt-12">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-xs font-medium tracking-wide text-accent uppercase">
-              Affiliation
-            </p>
+            <p className="section-kicker">Affiliation</p>
             <h2 className="mt-1 font-display text-xl font-semibold tracking-tight">
               Ouvrir un compte chez un partenaire
             </h2>
@@ -136,7 +132,7 @@ function PremiumPage() {
               href={p.href}
               target="_blank"
               rel="noopener noreferrer sponsored"
-              className="group rounded-2xl border border-border bg-card p-5 transition-colors hover:border-accent/40"
+              className="card-lift group rounded-2xl border border-border/80 bg-card/90 p-5"
             >
               <div className="flex items-center justify-between gap-2">
                 <Badge variant="outline">{p.tag}</Badge>
@@ -150,12 +146,10 @@ function PremiumPage() {
       </section>
 
       {/* EA SMC */}
-      <section className="mt-12 rounded-2xl border border-border bg-card p-6 md:p-8">
+      <section className="mt-12 rounded-2xl border border-border/80 bg-card/90 p-6 shadow-sm md:p-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-medium tracking-wide text-accent uppercase">
-              MetaTrader 5
-            </p>
+            <p className="section-kicker">MetaTrader 5</p>
             <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight">
               EA SMC MultiSetup PRO v5.30
             </h2>

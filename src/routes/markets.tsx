@@ -30,16 +30,13 @@ function MarketsPage() {
     <div className="mx-auto max-w-6xl px-4 py-8 pb-28 md:pb-12">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-medium tracking-wide text-accent uppercase">
-            Watchlist
-          </p>
-          <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">
+          <p className="section-kicker">Watchlist</p>
+          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">
             Quatre marchés, un analyzer
           </h1>
-          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Forex, cryptomonnaies, matières premières, indices. Prix via
-            Frankfurter, CoinGecko, Yahoo. Clique un actif pour afficher le
-            graphique TradingView.
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+            Forex, crypto, matières, indices — prix live gratuits. Clique un
+            actif pour le graphique TradingView, puis analyse une capture.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -114,10 +111,10 @@ function MarketsPage() {
                 }
               }}
               className={cn(
-                "cursor-pointer rounded-xl border bg-card p-4 transition-colors",
+                "card-lift cursor-pointer rounded-2xl border bg-card/90 p-4",
                 isSelected
-                  ? "border-accent ring-1 ring-accent/40"
-                  : "border-border hover:border-border/80",
+                  ? "border-accent/60 ring-1 ring-accent/35 shadow-[0_0_0_1px_color-mix(in_oklab,var(--color-accent)_20%,transparent)]"
+                  : "border-border/80",
               )}
             >
               <div className="flex items-start justify-between gap-2">
@@ -189,10 +186,10 @@ function Chip({
       type="button"
       onClick={onClick}
       className={cn(
-        "h-9 rounded-full px-3 text-xs font-medium",
+        "h-9 rounded-full px-3 text-xs font-medium transition-colors",
         active
-          ? "bg-primary text-primary-foreground"
-          : "bg-elevated text-muted-foreground",
+          ? "nav-pill-active"
+          : "bg-elevated/80 text-muted-foreground hover:bg-elevated hover:text-foreground",
       )}
     >
       {children}

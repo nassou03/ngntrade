@@ -128,13 +128,13 @@ export function AnalyzerWorkspace() {
       ) : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-medium tracking-wide text-accent uppercase">Analyzer</p>
-          <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">
+          <p className="section-kicker">Analyzer</p>
+          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">
             Capture, thèse, plan
           </h1>
-          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Envoyez un graphique TradingView, MT4/MT5 ou broker. Ngntrade lit la structure et
-            renvoie biais, niveaux et un plan exécutable chez vous.
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+            Graphique TradingView, MT4/MT5 ou broker. Biais, niveaux, entrée sniper,
+            stop structurel et cibles — plus un score de qualité de la capture.
           </p>
         </div>
       </div>
@@ -142,7 +142,7 @@ export function AnalyzerWorkspace() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
         <div className="space-y-4">
           {image ? (
-            <div className="overflow-hidden rounded-xl border border-border bg-card">
+            <div className="overflow-hidden rounded-2xl border border-border/80 bg-card/90 shadow-[0_20px_60px_-36px_rgba(0,0,0,0.9)]">
               <img
                 src={image}
                 alt="Graphique à analyser"
@@ -180,7 +180,7 @@ export function AnalyzerWorkspace() {
           {error ? <p className="text-sm text-bear">{error}</p> : null}
         </div>
 
-        <Card>
+        <Card className="border-border/80 bg-card/90 shadow-sm">
           <CardContent className="space-y-4 p-5">
             <div className="space-y-1.5">
               <Label>Marché</Label>
@@ -298,6 +298,26 @@ function Chip({
   onClick,
   children,
 }: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "h-9 rounded-full px-3 text-xs font-medium transition-colors",
+        active
+          ? "nav-pill-active"
+          : "bg-elevated/80 text-muted-foreground hover:bg-elevated hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+: {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
