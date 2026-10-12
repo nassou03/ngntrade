@@ -94,7 +94,10 @@ function PremiumPage() {
         L&apos;app de base reste gratuite. Premium est{" "}
         <strong className="font-medium text-foreground/90">réservé aux abonnés</strong>{" "}
         : tu vois ce qui est inclus, le contenu complet (EA, guide, paramètres)
-        s&apos;ouvre après paiement.
+        s&apos;ouvre après paiement.{" "}
+        <Link to="/offre" className="font-medium text-accent hover:underline">
+          Page de vente
+        </Link>
       </p>
 
       {/* Plans — always visible (teaser) */}

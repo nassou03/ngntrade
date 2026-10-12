@@ -99,9 +99,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 variant="outline"
                 className="hidden border-border/80 sm:inline-flex"
               >
-                <Link to="/premium">
+                <Link to="/offre">
                   <Sparkles className="size-3.5 text-accent" />
-                  Premium
+                  Offre
                 </Link>
               </Button>
               <Button
@@ -137,7 +137,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link to="/analyzer">Nouvelle analyse</Link>
               </Button>
               <Button asChild variant="outline" className="w-full" onClick={() => setOpen(false)}>
-                <Link to="/premium">Premium & EA MT5</Link>
+                <Link to="/offre">Offre Premium</Link>
               </Button>
             </div>
           </SheetContent>
@@ -205,10 +205,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                   Forex · Crypto · Matières · Indices
                 </p>
                 <Link
-                  to="/premium"
+                  to="/offre"
                   className="text-xs font-medium text-accent hover:underline"
                 >
-                  Offre Premium
+                  Page de vente Premium
                 </Link>
               </div>
             </div>

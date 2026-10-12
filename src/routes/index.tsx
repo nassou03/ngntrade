@@ -300,7 +300,7 @@ function Home() {
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link to="/premium">Voir Premium</Link>
+              <Link to="/offre">Voir l’offre</Link>
             </Button>
           </div>
         </div>
