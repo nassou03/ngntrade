@@ -8,6 +8,7 @@ import {
   CandlestickChart,
   LayoutDashboard,
   Menu,
+  MessageCircle,
   MessageSquare,
   Plus,
   Sparkles,
@@ -16,7 +17,7 @@ import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { LEGAL_DISCLAIMER, PARTNERS } from "@/lib/monetization";
+import { LEGAL_DISCLAIMER, PARTNERS, WHATSAPP_URL } from "@/lib/monetization";
 
 const NAV = [
   { to: "/analyzer", label: "Analyser", icon: CandlestickChart },
@@ -172,6 +173,18 @@ export function AppShell({ children }: { children: ReactNode }) {
             })}
           </div>
         </nav>
+
+        {WHATSAPP_URL.trim() ? (
+          <a
+            href={WHATSAPP_URL.trim()}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Contacter sur WhatsApp"
+            className="fixed bottom-20 right-4 z-50 flex size-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_8px_30px_-6px_rgba(37,211,102,0.65)] transition hover:scale-105 hover:bg-[#20bd5a] md:bottom-6 md:right-6"
+          >
+            <MessageCircle className="size-7" strokeWidth={2} />
+          </a>
+        ) : null}
 
         <footer className="mt-auto border-t border-border/80 bg-card/40 py-10">
           <div className="mx-auto max-w-6xl space-y-8 px-4">

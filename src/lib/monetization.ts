@@ -53,6 +53,13 @@ export const PREMIUM_ACCESS_CODE = envLink(
 
 export const PREMIUM_STORAGE_KEY = "ngn_premium_unlocked";
 
+/**
+ * Bouton WhatsApp flottant.
+ * Vercel → VITE_WHATSAPP_URL = https://wa.me/33700000000?text=Bonjour
+ * (indicatif pays sans + ni 00, ex. 33 pour la France, 225 pour la Côte d'Ivoire)
+ */
+export const WHATSAPP_URL = envLink("VITE_WHATSAPP_URL", "");
+
 export const PARTNERS: Partner[] = [
   {
     id: "xm",

@@ -16,6 +16,7 @@ import {
   LEGAL_DISCLAIMER,
   PREMIUM_CHECKOUT_URL,
   PLANS,
+  WHATSAPP_URL,
 } from "@/lib/monetization";
 
 export const Route = createFileRoute("/offre")({ component: OffrePage });
@@ -317,6 +318,13 @@ function OffrePage() {
             <Button asChild size="lg" variant="outline">
               <Link to="/analyzer">Continuer gratuitement</Link>
             </Button>
+            {WHATSAPP_URL.trim() ? (
+              <Button asChild size="lg" variant="outline" className="border-[#25D366]/40 text-[#25D366] hover:bg-[#25D366]/10">
+                <a href={WHATSAPP_URL.trim()} target="_blank" rel="noopener noreferrer">
+                  WhatsApp
+                </a>
+              </Button>
+            ) : null}
           </div>
           <p className="mx-auto mt-8 max-w-xl text-xs leading-relaxed text-subtle">
             {LEGAL_DISCLAIMER}
