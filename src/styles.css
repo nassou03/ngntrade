@@ -211,3 +211,20 @@
     color-mix(in oklab, var(--color-border) 80%, transparent)
   );
 }
+
+
+/* Home premium surfaces */
+.hero-grid {
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--color-foreground) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--color-foreground) 4%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black 20%, transparent 75%);
+}
+
+.hero-mesh {
+  background:
+    radial-gradient(ellipse 90% 70% at 15% -10%, color-mix(in oklab, #3b82f6 22%, transparent), transparent 55%),
+    radial-gradient(ellipse 70% 55% at 95% 5%, color-mix(in oklab, #2dd4bf 14%, transparent), transparent 50%),
+    radial-gradient(ellipse 55% 45% at 55% 100%, color-mix(in oklab, #8ec5ff 10%, transparent), transparent 48%);
+}
