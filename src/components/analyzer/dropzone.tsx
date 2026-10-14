@@ -6,10 +6,14 @@ export function Dropzone({
   onFile,
   busy,
   compact,
+  label,
+  hint,
 }: {
   onFile: (file: File) => void;
   busy?: boolean;
   compact?: boolean;
+  label?: string;
+  hint?: string;
 }) {
   const [over, setOver] = useState(false);
   const id = useId();
@@ -57,9 +61,11 @@ export function Dropzone({
       <span className="mb-3 flex size-12 items-center justify-center rounded-md bg-card border border-border">
         <Upload className="size-5 text-accent" />
       </span>
-      <p className="font-display text-lg font-semibold">Déposez votre graphique</p>
+      <p className={cn("font-display font-semibold", compact ? "text-base" : "text-lg")}>
+        {label ?? "Déposez votre graphique"}
+      </p>
       <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-        PNG, JPG ou WebP. Incluez l’axe des prix et l’axe du temps.
+        {hint ?? "PNG, JPG ou WebP. Incluez l’axe des prix et l’axe du temps."}
       </p>
     </label>
   );

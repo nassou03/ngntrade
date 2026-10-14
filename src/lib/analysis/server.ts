@@ -9,7 +9,14 @@ const ANTHROPIC_MODEL =
   process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5";
 
 type AnalyzePayload = {
-  imageDataUrl: string;
+  /** Rétrocompat : une seule image */
+  imageDataUrl?: string;
+  /** Multi-TF recommandé : même symbole, H1 + M15 + M5 */
+  images?: {
+    h1?: string;
+    m15?: string;
+    m5?: string;
+  };
   input: AnalysisInput;
 };
 
@@ -232,40 +239,55 @@ async function callXai(
   }
 }
 
-function buildAnalyzePrompt(input: AnalysisInput) {
+function buildAnalyzePrompt(
+  input: AnalysisInput,
+  frames: { label: string; present: boolean }[],
+) {
+  const present = frames.filter((f) => f.present).map((f) => f.label);
+  const multi = present.length > 1;
   const parts = [
-    "Tu es un analyste technique senior pour Ngntrade.",
-    "Lis UNIQUEMENT ce qui est visible sur la capture : bougies, axes, indicateurs, volumes, niveaux tracés.",
+    "Tu es un analyste technique senior pour Ngntrade (multi-timeframe).",
+    "Lis UNIQUEMENT ce qui est visible sur les captures : bougies, axes, indicateurs, volumes, niveaux, ATR si affiché.",
     "Ne fabule pas de prix contradictoires avec l’échelle. Si un champ est illisible, approxime prudemment et baisse confidence.",
     "Rédige trend, rationale, risks, sessionNotes, invalidation et patterns en français, ton professionnel, concis.",
     "Ce n’est pas un conseil financier : un plan à vérifier avant de risquer du capital.",
-    "score = qualité du setup 0-100. confidence = certitude de lecture du graphique 0-100.",
-    "takeProfits : 1 à 3 cibles dans le sens du trade. Si direction = wait, fournis tout de même des zones hypothétiques.",
+    "score = qualité du setup 0-100. confidence = certitude de lecture des graphiques 0-100.",
     "Réponds UNIQUEMENT avec un objet JSON valide.",
     "Interdit : markdown, blocs code, commentaires, texte avant/après le JSON.",
     "Les nombres (prix, scores) doivent être des number JSON, pas des strings.",
-    "setup.takeProfits : tableau de 1 à 3 nombres. patterns et risks : tableaux de strings.",
-    "setup.sniperEntry : UN seul prix d'entrée chirurgical (pas une zone). Doit être dans ou collé à entryMin–entryMax.",
-    "setup.sniperReason : 1–2 phrases — pourquoi CE prix (retest FVG, OB, VWAP, equal highs, liquidité, etc.).",
+    "setup.sniperEntry : UN seul prix d'entrée LIMIT chirurgical (buy limit ou sell limit selon direction).",
+    "setup.sniperReason : 1–2 phrases — confluence MTF + structure (FVG, OB, VWAP, equal highs/lows).",
     "Si direction=wait : sniperEntry = prix idéal d'attente (limit), pas le prix marché actuel.",
-    "Précision sniper : utilise l'échelle visible du graphique (même nombre de décimales que les labels).",
-    "STOP LOSS — règles strictes :",
-    "1) Place le SL AU-DELÀ d'une structure claire (swing, extrémité de range, bande VWAP externe, equal highs/lows), PAS juste sous la dernière mèche.",
-    "2) Ajoute une marge de sécurité (buffer) : ~0,15–0,35 % du prix pour crypto/indices majeurs, ou 1–1,5× l'amplitude moyenne des bougies visibles sur le TF.",
-    "3) Interdit : SL trop serré qui serait touché par le bruit normal du TF (ex. < 0,25 % sur BTC 15m sans structure).",
-    "4) Distance sniper→SL doit permettre un R:R réaliste SANS compresser le stop artificiellement.",
-    "TAKE PROFITS — règles strictes :",
-    "1) TP1 = premier niveau de structure / liquidité (réaction probable), souvent ~1R à 1,5R après un SL correct.",
-    "2) TP2 = extension (sommet/creux de range, VWAP session précédente, niveau rond).",
-    "3) TP3 = objectif ambitieux mais visible sur le graphique (pas inventé hors échelle).",
-    "4) Les TP doivent s'aligner sur supports/résistances listés ; éviter des TP collés trop près du sniper.",
-    "5) Si le SL est large, accepte un R:R TP1 plus modeste (1–1,5) plutôt qu'un SL irréaliste.",
-    "imageQuality (OBLIGATOIRE) : évalue UNIQUEMENT la capture, pas le marché.",
-    "imageQuality.score 0–100 : axes prix+temps visibles ? TF lisible ? niveaux/échelle clairs ? zoom correct ?",
-    "tradeability high si score≥75 et axes OK ; medium 50–74 ; low <50 ou axes manquants.",
-    "Si axes absents ou image floue : baisse confidence ET imageQuality.score, notes explicites.",
-    "Ne promets jamais un winrate ; score = qualité de LECTURE de l'image.",
   ];
+  if (multi) {
+    parts.push(
+      `MULTI-TIMEFRAME activé. Images fournies : ${present.join(", ")}.`,
+      "Ordre de lecture strict :",
+      "1) H1 = biais structurel (tendance, range, niveaux majeurs). Sans alignement H1, préfère direction=wait.",
+      "2) M15 = zone d'entrée et invalidation intermédiaire.",
+      "3) M5 = raffinement du limit sniper (retest précis).",
+      "timeframe du JSON = TF d'exécution principal (souvent M15 ou M5).",
+      "sessionNotes : résume en 2–4 phrases la confluence H1→M15→M5.",
+    );
+  } else {
+    parts.push(
+      "Une seule capture fournie. Analyse standard. timeframe = TF visible sur l'image.",
+    );
+  }
+  parts.push(
+    "STOP LOSS — règle ATR (prioritaire) :",
+    "1) SL = environ 1× ATR du TF d'exécution (M15 si dispo, sinon M5, sinon TF unique).",
+    "2) Si l'indicateur ATR est visible, utilise sa valeur lue sur le graphique.",
+    "3) Sinon estime ATR ≈ amplitude moyenne des bougies récentes (ou True Range moyen visible).",
+    "4) Place le SL au-delà d'une structure claire, à une distance ≈ 1 ATR depuis le sniper (pas plus serré que 0,8 ATR, pas plus large que 1,3 ATR sans raison structurelle).",
+    "5) Interdit : compresser le SL juste pour gonfler le R:R.",
+    "TAKE PROFITS :",
+    "1) TP1 ≈ 1R à 1,5R (premier niveau structure).",
+    "2) TP2 / TP3 = extensions H1 / niveaux majeurs visibles.",
+    "3) Aligne les TP sur supports/résistances listés.",
+    "imageQuality : qualité de lecture de l'ENSEMBLE des images (axes, TF, netteté).",
+    "Ne promets jamais un winrate ; score = qualité de lecture + confluence MTF.",
+  );
   if (input.market && input.market !== "auto") {
     parts.push(`Marché déclaré par le trader : ${input.market}.`);
   }
@@ -283,11 +305,29 @@ function buildAnalyzePrompt(input: AnalysisInput) {
 export const analyzeChart = createServerFn({ method: "POST" })
   .validator((input: AnalyzePayload) => input)
   .handler(async ({ data }) => {
-    if (!data.imageDataUrl?.startsWith("data:image/")) {
-      return { ok: false as const, error: "Image invalide" };
+    const ordered: { label: string; url: string }[] = [];
+    const pushImg = (label: string, url?: string) => {
+      if (url?.startsWith("data:image/")) ordered.push({ label, url });
+    };
+    pushImg("H1", data.images?.h1);
+    pushImg("M15", data.images?.m15);
+    pushImg("M5", data.images?.m5);
+    if (ordered.length === 0 && data.imageDataUrl?.startsWith("data:image/")) {
+      ordered.push({ label: "CHART", url: data.imageDataUrl });
     }
-    if (data.imageDataUrl.length > 1_600_000) {
-      return { ok: false as const, error: "Image trop lourde" };
+    if (ordered.length === 0) {
+      return {
+        ok: false as const,
+        error: "Ajoutez au moins une capture (idéalement H1 + M15 + M5).",
+      };
+    }
+    for (const img of ordered) {
+      if (img.url.length > 1_600_000) {
+        return {
+          ok: false as const,
+          error: `Image ${img.label} trop lourde — compressez ou recadrez.`,
+        };
+      }
     }
 
     if (!hasAnthropic() && !hasXai()) {
@@ -298,69 +338,84 @@ export const analyzeChart = createServerFn({ method: "POST" })
       };
     }
 
-    const prompt = buildAnalyzePrompt(data.input);
+    const frames = [
+      { label: "H1", present: ordered.some((o) => o.label === "H1") },
+      { label: "M15", present: ordered.some((o) => o.label === "M15") },
+      { label: "M5", present: ordered.some((o) => o.label === "M5") },
+      {
+        label: "CHART",
+        present: ordered.some((o) => o.label === "CHART"),
+      },
+    ];
+    const prompt = buildAnalyzePrompt(data.input, frames);
+    const timeoutMs = ordered.length > 1 ? 120_000 : 90_000;
     let result: LlmResult;
 
     if (hasAnthropic()) {
-      const parsed = parseDataUrl(data.imageDataUrl);
-      if (!parsed) {
-        return { ok: false as const, error: "Image invalide (data URL)" };
+      const content: unknown[] = [];
+      for (const img of ordered) {
+        const parsed = parseDataUrl(img.url);
+        if (!parsed) {
+          return {
+            ok: false as const,
+            error: `Image ${img.label} invalide (data URL)`,
+          };
+        }
+        content.push({ type: "text", text: `--- Graphique ${img.label} ---` });
+        content.push({
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: parsed.mediaType,
+            data: parsed.base64,
+          },
+        });
       }
+      content.push({ type: "text", text: prompt });
       result = await callAnthropic({
         maxTokens: 4096,
-        temperature: 0.2,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: parsed.mediaType,
-                  data: parsed.base64,
-                },
-              },
-              { type: "text", text: prompt },
-            ],
-          },
-        ],
+        timeoutMs,
+        messages: [{ role: "user", content }],
       });
     } else {
-      const messages = [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image_url",
-              image_url: { url: data.imageDataUrl, detail: "high" },
-            },
-            { type: "text", text: prompt },
-          ],
-        },
-      ];
+      const content: unknown[] = [];
+      for (const img of ordered) {
+        content.push({ type: "text", text: `--- Graphique ${img.label} ---` });
+        content.push({
+          type: "image_url",
+          image_url: { url: img.url, detail: "high" },
+        });
+      }
+      content.push({ type: "text", text: prompt });
+      const messages = [{ role: "user", content }];
       const base = {
         model: XAI_MODEL,
-        max_tokens: 2200,
+        max_tokens: 2800,
         temperature: 0.2,
         messages,
       };
-      result = await callXai({
-        ...base,
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "chart_analysis",
-            strict: true,
-            schema: ANALYSIS_JSON_SCHEMA,
+      result = await callXai(
+        {
+          ...base,
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "chart_analysis",
+              strict: true,
+              schema: ANALYSIS_JSON_SCHEMA,
+            },
           },
         },
-      });
+        timeoutMs,
+      );
       if (!result.ok && result.status && result.status >= 400) {
-        result = await callXai({
-          ...base,
-          response_format: { type: "json_object" },
-        });
+        result = await callXai(
+          {
+            ...base,
+            response_format: { type: "json_object" },
+          },
+          timeoutMs,
+        );
       }
     }
 
