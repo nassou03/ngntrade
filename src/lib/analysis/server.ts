@@ -466,12 +466,18 @@ export const askCopilot = createServerFn({ method: "POST" })
       };
     }
 
-    const history = data.messages.slice(-8);
+    const history = data.messages.slice(-12);
     const system = [
       TONE_PROMPTS[data.tone],
-      "Réponds en français, concis (120-180 mots max sauf si on te demande un plan détaillé).",
-      "Pas de conseil financier personnalisé. Rappelle que l’exécution reste chez le trader.",
-      "Si un plan d’analyse est fourni, ancre tes réponses dessus.",
+      "Réponds en français, clair et complet.",
+      "STRUCTURE OBLIGATOIRE de chaque réponse :",
+      "1) Réponse directe à la question",
+      "2) Développement (niveaux, scénarios, risques si pertinent)",
+      "3) Conclusion actionnable en 1–3 phrases (quoi faire / quoi éviter / invalidation)",
+      "Ne coupe jamais une idée au milieu : termine chaque point avant de passer au suivant.",
+      "Longueur adaptée : ~200–450 mots si la question le mérite ; plus court seulement pour une question simple.",
+      "Pas de conseil financier personnalisé. L’exécution reste chez le trader.",
+      "Si un plan d’analyse est fourni, ancre tes réponses dessus (prix, SL, TP, biais).",
       data.analysisContext
         ? `Plan en cours :\n${data.analysisContext}`
         : "Aucun graphique chargé. Pose des questions de clarification plutôt que d’inventer des niveaux.",
@@ -481,9 +487,8 @@ export const askCopilot = createServerFn({ method: "POST" })
     if (hasAnthropic()) {
       result = await callAnthropic({
         system,
-        maxTokens: 900,
-        temperature: 0.4,
-        timeoutMs: 60_000,
+        maxTokens: 2500,
+        timeoutMs: 90_000,
         messages: history.map((m) => ({
           role: m.role,
           content: m.content,
@@ -493,11 +498,11 @@ export const askCopilot = createServerFn({ method: "POST" })
       result = await callXai(
         {
           model: XAI_MODEL,
-          max_tokens: 900,
-          temperature: 0.4,
+          max_tokens: 2500,
+          temperature: 0.35,
           messages: [{ role: "system", content: system }, ...history],
         },
-        60_000,
+        90_000,
       );
     }
 
