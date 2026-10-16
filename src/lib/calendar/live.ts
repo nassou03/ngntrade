@@ -36,6 +36,13 @@ const MARKET_HINT: Record<string, string> = {
   NZD: "NZDUSD",
 };
 
+/** Jour UTC YYYY-MM-DD (évite les décalages fuseau sur le calendrier) */
+export function utcDayKey(input: string | Date): string {
+  const d = typeof input === "string" ? new Date(input) : input;
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
+}
+
 function formatValue(
   n: number | null | undefined,
   unit?: string,
@@ -84,9 +91,12 @@ export function mapBiquoteToMacro(raw: BiquoteEvent[]): MacroEvent[] {
       /[^a-zA-Z0-9:_-]/g,
       "_",
     );
+    let at = r.time;
+    if (!at.includes("T")) at = `${at}T12:00:00Z`;
+    else if (!at.endsWith("Z") && !/[+-]\d{2}:\d{2}$/.test(at)) at = `${at}Z`;
     const event: MacroEvent = {
       id,
-      at: r.time.endsWith("Z") ? r.time : `${r.time}Z`.replace("ZZ", "Z"),
+      at,
       currency: currency.slice(0, 3),
       title: r.name,
       impact,
@@ -102,63 +112,108 @@ export function mapBiquoteToMacro(raw: BiquoteEvent[]): MacroEvent[] {
   return out.sort((a, b) => a.at.localeCompare(b.at));
 }
 
-let cache: { at: number; events: MacroEvent[]; source: string } | null = null;
-const CACHE_MS = 15 * 60 * 1000;
+function mergeEvents(live: MacroEvent[], curated: MacroEvent[]): MacroEvent[] {
+  const map = new Map<string, MacroEvent>();
+  for (const e of curated) {
+    map.set(`${utcDayKey(e.at)}|${e.currency}|${e.title.toLowerCase()}`, e);
+  }
+  for (const e of live) {
+    const key = `${utcDayKey(e.at)}|${e.currency}|${e.title.toLowerCase()}`;
+    const prev = map.get(key);
+    if (prev) {
+      map.set(key, {
+        ...e,
+        playbook: prev.playbook || e.playbook,
+        actual: e.actual ?? prev.actual,
+        forecast: e.forecast ?? prev.forecast,
+        previous: e.previous ?? prev.previous,
+      });
+    } else {
+      map.set(key, e);
+    }
+  }
+  return [...map.values()].sort((a, b) => a.at.localeCompare(b.at));
+}
+
+let cache: { at: number; events: MacroEvent[]; source: string; error?: string } | null =
+  null;
+const CACHE_MS = 10 * 60 * 1000;
 
 export async function loadCalendarEvents(): Promise<{
   events: MacroEvent[];
-  source: "live" | "curated";
+  source: "live" | "curated" | "mixed";
   error?: string;
 }> {
   if (cache && Date.now() - cache.at < CACHE_MS) {
     return {
       events: cache.events,
-      source: cache.source as "live" | "curated",
+      source: cache.source as "live" | "curated" | "mixed",
+      error: cache.error,
     };
   }
 
   try {
     const from = new Date();
-    from.setUTCDate(from.getUTCDate() - 2);
+    from.setUTCDate(from.getUTCDate() - 3);
     const to = new Date();
-    to.setUTCDate(to.getUTCDate() + 14);
+    to.setUTCDate(to.getUTCDate() + 21);
     const fromS = from.toISOString().slice(0, 10);
     const toS = to.toISOString().slice(0, 10);
-    const url = `https://biquote.io/api/calendar?from=${fromS}&to=${toS}`;
-    const res = await fetch(url, {
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "NgntradeCalendar/1.0",
-      },
-      signal: AbortSignal.timeout(12_000),
-    });
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
+    // Deux appels (fenêtres) si une seule réponse est plafonnée
+    const urls = [
+      `https://biquote.io/api/calendar?from=${fromS}&to=${toS}`,
+      `https://biquote.io/api/calendar?importance=high&from=${fromS}&to=${toS}`,
+    ];
+    const chunks: BiquoteEvent[] = [];
+    let lastErr = "";
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, {
+          headers: {
+            Accept: "application/json",
+            "User-Agent": "NgntradeCalendar/1.1",
+          },
+          signal: AbortSignal.timeout(15_000),
+        });
+        if (!res.ok) {
+          lastErr = `HTTP ${res.status}`;
+          continue;
+        }
+        const data = (await res.json()) as BiquoteEvent[];
+        if (Array.isArray(data)) chunks.push(...data);
+      } catch (e) {
+        lastErr = e instanceof Error ? e.message : "fetch failed";
+      }
     }
-    const data = (await res.json()) as BiquoteEvent[];
-    if (!Array.isArray(data) || data.length === 0) {
-      throw new Error("Réponse vide");
+    if (chunks.length === 0) {
+      throw new Error(lastErr || "Réponse vide");
     }
-    const events = mapBiquoteToMacro(data);
-    // Prefer curated playbooks when same title+day roughly matches
-    const enriched = events.map((e) => {
-      const hit = MACRO_EVENTS.find(
-        (c) =>
-          c.currency === e.currency &&
-          c.title.toLowerCase().includes(e.title.slice(0, 12).toLowerCase()),
-      );
-      if (hit?.playbook) return { ...e, playbook: hit.playbook };
-      return e;
-    });
-    cache = { at: Date.now(), events: enriched, source: "live" };
-    return { events: enriched, source: "live" };
+    // Dédup brute par id
+    const seen = new Set<string>();
+    const unique: BiquoteEvent[] = [];
+    for (const c of chunks) {
+      const id = String(c.id || c.eventId || `${c.time}-${c.name}`);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      unique.push(c);
+    }
+    const live = mapBiquoteToMacro(unique);
+    const events = mergeEvents(live, MACRO_EVENTS);
+    const source = live.length > 0 ? "mixed" : "curated";
+    cache = { at: Date.now(), events, source };
+    return { events, source: source as "mixed" };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "fetch failed";
-    cache = { at: Date.now(), events: MACRO_EVENTS, source: "curated" };
+    cache = {
+      at: Date.now(),
+      events: MACRO_EVENTS,
+      source: "curated",
+      error: `Live indisponible (${msg}) — calendrier de secours.`,
+    };
     return {
       events: MACRO_EVENTS,
       source: "curated",
-      error: `Live indisponible (${msg}) — calendrier de secours affiché.`,
+      error: cache.error,
     };
   }
 }

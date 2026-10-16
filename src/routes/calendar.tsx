@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { addDays, format, isSameDay, startOfWeek } from "date-fns";
+import { addDays, format, startOfWeek } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,7 @@ import {
   type Impact,
   type MacroEvent,
 } from "@/lib/calendar/events";
+import { utcDayKey } from "@/lib/calendar/live";
 import { getCalendarEvents } from "@/lib/calendar/server";
 import { cn } from "@/lib/utils";
 import { RefreshCw } from "lucide-react";
@@ -21,22 +22,24 @@ export const Route = createFileRoute("/calendar")({ component: CalendarPage });
 type ImpactFilter = Impact | "all";
 type CurrencyFilter = (typeof CURRENCIES)[number] | "all";
 
+function dayLabel(isoDay: string) {
+  // isoDay = YYYY-MM-DD → parse as UTC noon
+  return new Date(`${isoDay}T12:00:00.000Z`);
+}
+
 function CalendarPage() {
-  const today = useMemo(() => {
-    const d = new Date();
-    d.setHours(12, 0, 0, 0);
-    return d;
-  }, []);
-  const [selected, setSelected] = useState(today);
+  const todayKey = useMemo(() => utcDayKey(new Date()), []);
+  const [selectedKey, setSelectedKey] = useState(todayKey);
   const [impactFilter, setImpactFilter] = useState<ImpactFilter>("all");
   const [currencyFilter, setCurrencyFilter] = useState<CurrencyFilter>("all");
   const [onlyWithResult, setOnlyWithResult] = useState(false);
+  const [didAutoPick, setDidAutoPick] = useState(false);
 
   const { data, isLoading, isFetching, refetch, isError } = useQuery({
     queryKey: ["macro-calendar"],
     queryFn: () => getCalendarEvents(),
-    staleTime: 10 * 60_000,
-    refetchInterval: 15 * 60_000,
+    staleTime: 8 * 60_000,
+    refetchInterval: 12 * 60_000,
   });
 
   const allEvents: MacroEvent[] = data?.events?.length
@@ -44,8 +47,11 @@ function CalendarPage() {
     : MACRO_EVENTS;
   const source = data?.source ?? "curated";
 
-  const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-  const days = Array.from({ length: 21 }, (_, i) => addDays(weekStart, i));
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const days = Array.from({ length: 21 }, (_, i) => {
+    const d = addDays(weekStart, i);
+    return utcDayKey(d);
+  });
 
   const filtered = useMemo(() => {
     return allEvents.filter((e) => {
@@ -57,22 +63,49 @@ function CalendarPage() {
     });
   }, [allEvents, impactFilter, currencyFilter, onlyWithResult]);
 
+  // Si le jour sélectionné est vide sous les filtres, sauter au prochain jour avec events
+  useEffect(() => {
+    if (didAutoPick || isLoading) return;
+    const onSelected = filtered.some((e) => utcDayKey(e.at) === selectedKey);
+    if (onSelected) return;
+    const next = filtered
+      .map((e) => utcDayKey(e.at))
+      .filter((k) => k >= todayKey)
+      .sort()[0];
+    const prev = filtered
+      .map((e) => utcDayKey(e.at))
+      .filter((k) => k < todayKey)
+      .sort()
+      .at(-1);
+    const pick = next || prev;
+    if (pick) {
+      setSelectedKey(pick);
+      setDidAutoPick(true);
+    }
+  }, [filtered, selectedKey, todayKey, isLoading, didAutoPick]);
+
+  useEffect(() => {
+    setDidAutoPick(false);
+  }, [impactFilter, currencyFilter, onlyWithResult]);
+
   const events = useMemo(
     () =>
       filtered
-        .filter((e) => isSameDay(new Date(e.at), selected))
+        .filter((e) => utcDayKey(e.at) === selectedKey)
         .sort((a, b) => a.at.localeCompare(b.at)),
-    [filtered, selected],
+    [filtered, selectedKey],
   );
 
   const upcomingHigh = useMemo(
     () =>
       filtered
-        .filter((e) => e.impact === "high" && new Date(e.at) >= today)
+        .filter((e) => e.impact === "high" && utcDayKey(e.at) >= todayKey)
         .sort((a, b) => a.at.localeCompare(b.at))
-        .slice(0, 8),
-    [filtered, today],
+        .slice(0, 10),
+    [filtered, todayKey],
   );
+
+  const selectedDate = dayLabel(selectedKey);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 pb-28 md:pb-12">
@@ -83,14 +116,22 @@ function CalendarPage() {
             Calendrier économique
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            Live soft gratuit (fenêtre ~2 semaines) + analyse d’impact réel vs
-            consensus. Filtres par importance et devise.
+            Live soft (gratuit) + secours curaté. Filtres impact / devise.
+            Analyse réel vs consensus.
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className="flex items-center gap-2">
-            <Badge variant={source === "live" ? "bull" : "outline"}>
-              {source === "live" ? "Live soft" : "Secours curaté"}
+            <Badge
+              variant={
+                source === "curated" ? "outline" : "bull"
+              }
+            >
+              {source === "live"
+                ? "Live soft"
+                : source === "mixed"
+                  ? "Live + secours"
+                  : "Secours curaté"}
             </Badge>
             <Button
               type="button"
@@ -113,7 +154,6 @@ function CalendarPage() {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="mt-6 space-y-3 rounded-2xl border border-border/80 bg-card/80 p-4">
         <div>
           <p className="text-[11px] font-medium tracking-wide text-subtle uppercase">
@@ -177,20 +217,18 @@ function CalendarPage() {
         </p>
       </div>
 
-      {/* Day strip */}
       <div className="mt-6 flex gap-2 overflow-x-auto pb-2">
-        {days.map((d) => {
-          const active = isSameDay(d, selected);
-          const dayEvents = filtered.filter((e) =>
-            isSameDay(new Date(e.at), d),
-          );
+        {days.map((key) => {
+          const d = dayLabel(key);
+          const active = key === selectedKey;
+          const dayEvents = filtered.filter((e) => utcDayKey(e.at) === key);
           const count = dayEvents.length;
           const high = dayEvents.some((e) => e.impact === "high");
           return (
             <button
-              key={d.toISOString()}
+              key={key}
               type="button"
-              onClick={() => setSelected(d)}
+              onClick={() => setSelectedKey(key)}
               className={cn(
                 "min-w-[4.25rem] rounded-xl border px-3 py-2.5 text-left transition-colors",
                 active
@@ -218,13 +256,33 @@ function CalendarPage() {
       <div className="mt-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
         <div className="space-y-3">
           <h2 className="font-display text-lg font-semibold tracking-tight">
-            {format(selected, "EEEE d MMMM yyyy", { locale: fr })}
+            {format(selectedDate, "EEEE d MMMM yyyy", { locale: fr })}
           </h2>
           {events.length === 0 ? (
-            <p className="rounded-2xl border border-border/80 bg-card/80 p-6 text-sm text-muted-foreground">
-              Aucun événement avec ces filtres ce jour. Élargis les filtres ou
-              choisis un autre jour.
-            </p>
+            <div className="space-y-3 rounded-2xl border border-border/80 bg-card/80 p-6 text-sm text-muted-foreground">
+              <p>
+                Aucun événement avec ces filtres ce jour.
+              </p>
+              <p className="text-xs">
+                Astuce : repasse Impact sur <strong className="text-foreground/90">Tous</strong>{" "}
+                ou Devise sur <strong className="text-foreground/90">Toutes</strong>, puis
+                clique un jour marqué « evt ».
+              </p>
+              {filtered.length > 0 ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const keys = [...new Set(filtered.map((e) => utcDayKey(e.at)))].sort();
+                    const next = keys.find((k) => k >= todayKey) || keys[0];
+                    if (next) setSelectedKey(next);
+                  }}
+                >
+                  Aller au prochain jour avec événements
+                </Button>
+              ) : null}
+            </div>
           ) : (
             events.map((e) => <EventCard key={e.id} event={e} />)
           )}
@@ -239,7 +297,8 @@ function CalendarPage() {
             <ul className="mt-3 space-y-2">
               {upcomingHigh.length === 0 ? (
                 <li className="text-sm text-muted-foreground">
-                  Aucun high impact à venir avec ces filtres.
+                  Aucun high impact à venir avec ces filtres. Elargis Impact ou
+                  Devise.
                 </li>
               ) : (
                 upcomingHigh.map((e) => (
@@ -247,7 +306,7 @@ function CalendarPage() {
                     <Button
                       variant="outline"
                       className="h-auto w-full justify-start border-border/80 py-3 text-left"
-                      onClick={() => setSelected(new Date(e.at))}
+                      onClick={() => setSelectedKey(utcDayKey(e.at))}
                     >
                       <span>
                         <span className="block font-mono text-[11px] text-muted-foreground">
@@ -269,9 +328,9 @@ function CalendarPage() {
           <div className="rounded-2xl border border-border/80 bg-elevated/30 p-4 text-xs leading-relaxed text-muted-foreground">
             <p className="font-medium text-foreground">Source live soft</p>
             <p className="mt-1">
-              Données agrégées gratuites (sans clé API). Cache ~15 min. Si le
-              flux est indisponible, le calendrier curaté de secours s’affiche.
-              Lecture éducative — pas un conseil d’investissement.
+              Données agrégées gratuites (sans clé). Cache ~10 min. Jour affiché
+              en UTC pour rester aligné avec les heures de publication. Lecture
+              éducative — pas un conseil d’investissement.
             </p>
           </div>
         </aside>
