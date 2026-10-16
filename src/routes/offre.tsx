@@ -3,7 +3,6 @@ import {
   ArrowRight,
   Check,
   Crosshair,
-  ExternalLink,
   Lock,
   ScanSearch,
   Shield,
@@ -14,10 +13,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   LEGAL_DISCLAIMER,
-  PREMIUM_CHECKOUT_URL,
   PLANS,
   WHATSAPP_URL,
+  hasAnyPaymentMethod,
 } from "@/lib/monetization";
+import { PaymentMethods } from "@/components/premium/payment-methods";
 
 export const Route = createFileRoute("/offre")({ component: OffrePage });
 
@@ -87,7 +87,7 @@ const FAQ = [
 
 function OffrePage() {
   const premium = PLANS.find((p) => p.id === "premium");
-  const hasCheckout = Boolean(PREMIUM_CHECKOUT_URL.trim());
+  const hasPay = hasAnyPaymentMethod();
 
   return (
     <main>
@@ -110,22 +110,12 @@ function OffrePage() {
             qui est inclus ici ; le contenu se débloque après abonnement.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            {hasCheckout ? (
-              <Button asChild size="lg">
-                <a
-                  href={PREMIUM_CHECKOUT_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  S’abonner maintenant
-                  <ExternalLink className="size-4" />
-                </a>
-              </Button>
-            ) : (
-              <Button size="lg" disabled>
-                Paiement bientôt disponible
-              </Button>
-            )}
+            <Button asChild size="lg">
+              <a href="#paiement">
+                S’abonner maintenant
+                <ArrowRight className="size-4" />
+              </a>
+            </Button>
             <Button asChild size="lg" variant="outline">
               <Link to="/premium">
                 Voir Premium
@@ -233,24 +223,11 @@ function OffrePage() {
                 </li>
               ))}
             </ul>
-            {hasCheckout ? (
-              <Button asChild className="mt-8 w-full" size="lg">
-                <a
-                  href={PREMIUM_CHECKOUT_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <ExternalLink className="size-4" />
-                  Payer et s’abonner
-                </a>
-              </Button>
-            ) : (
-              <Button className="mt-8 w-full" size="lg" disabled>
-                Lien de paiement à configurer
-              </Button>
-            )}
+            <div id="paiement" className="mt-8 scroll-mt-24">
+              <PaymentMethods compact />
+            </div>
             <p className="mt-3 text-center text-[11px] text-subtle">
-              Après paiement → code → déblocage sur /premium
+              Après paiement → code d’accès → déblocage sur /premium
             </p>
           </div>
         </div>
@@ -299,22 +276,9 @@ function OffrePage() {
             réservé — activé seulement après abonnement.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            {hasCheckout ? (
-              <Button asChild size="lg">
-                <a
-                  href={PREMIUM_CHECKOUT_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  S’abonner
-                  <ExternalLink className="size-4" />
-                </a>
-              </Button>
-            ) : (
-              <Button asChild size="lg">
-                <Link to="/premium">Aller à Premium</Link>
-              </Button>
-            )}
+            <Button asChild size="lg">
+              <a href="#paiement">Choisir un paiement</a>
+            </Button>
             <Button asChild size="lg" variant="outline">
               <Link to="/analyzer">Continuer gratuitement</Link>
             </Button>

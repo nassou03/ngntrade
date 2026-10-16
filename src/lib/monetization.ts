@@ -60,6 +60,105 @@ export const PREMIUM_STORAGE_KEY = "ngn_premium_unlocked";
  */
 export const WHATSAPP_URL = envLink("VITE_WHATSAPP_URL", "");
 
+export type PaymentMethodId =
+  | "checkout"
+  | "mtn"
+  | "crypto"
+  | "api";
+
+export type PaymentMethod = {
+  id: PaymentMethodId;
+  label: string;
+  description: string;
+  /** Lien externe (Gumroad, NOWPayments, CinetPay…) */
+  href?: string;
+  /** Infos à copier (numéro MoMo, adresse wallet) */
+  detail?: string;
+  /** Label du détail (ex. Numéro MTN) */
+  detailLabel?: string;
+  enabled: boolean;
+};
+
+/**
+ * Moyens de paiement Premium — tout configurable via variables Vercel.
+ *
+ * Carte / Gumroad :
+ *   VITE_PREMIUM_CHECKOUT=https://...
+ *
+ * MTN Mobile Money (manuel ou lien CinetPay/Flutterwave) :
+ *   VITE_PAY_MTN_NUMBER=22901XXXXXXX
+ *   VITE_PAY_MTN_NAME=Ton Nom
+ *   VITE_PAY_MTN_URL=https://...   (optionnel — lien API agrégateur)
+ *
+ * Crypto :
+ *   VITE_PAY_CRYPTO_URL=https://nowpayments.io/...
+ *   VITE_PAY_CRYPTO_ADDRESS=TXxx...   (USDT TRC20 ou autre)
+ *   VITE_PAY_CRYPTO_NETWORK=USDT TRC20
+ *
+ * Agrégateur / API (CinetPay, Paystack, Flutterwave, Stripe…) :
+ *   VITE_PAY_API_URL=https://checkout...
+ *   VITE_PAY_API_LABEL=CinetPay
+ */
+function buildPaymentMethods(): PaymentMethod[] {
+  const checkout = PREMIUM_CHECKOUT_URL.trim();
+  const mtnNumber = envLink("VITE_PAY_MTN_NUMBER", "").trim();
+  const mtnName = envLink("VITE_PAY_MTN_NAME", "").trim();
+  const mtnUrl = envLink("VITE_PAY_MTN_URL", "").trim();
+  const cryptoUrl = envLink("VITE_PAY_CRYPTO_URL", "").trim();
+  const cryptoAddress = envLink("VITE_PAY_CRYPTO_ADDRESS", "").trim();
+  const cryptoNetwork = envLink("VITE_PAY_CRYPTO_NETWORK", "USDT / BTC").trim();
+  const apiUrl = envLink("VITE_PAY_API_URL", "").trim();
+  const apiLabel = envLink("VITE_PAY_API_LABEL", "Paiement API").trim();
+
+  const methods: PaymentMethod[] = [
+    {
+      id: "checkout",
+      label: "Carte / Gumroad",
+      description: "Paiement en ligne sécurisé (carte, PayPal selon le prestataire).",
+      href: checkout || undefined,
+      enabled: Boolean(checkout),
+    },
+    {
+      id: "mtn",
+      label: "MTN Mobile Money",
+      description: mtnName
+        ? `Envoie le montant à ${mtnName}, puis envoie la preuve sur WhatsApp pour recevoir ton code.`
+        : "Mobile Money MTN — configure le numéro sur Vercel, puis envoie la preuve pour le code d’accès.",
+      href: mtnUrl || undefined,
+      detail: mtnNumber || undefined,
+      detailLabel: mtnNumber ? "Numéro MTN MoMo" : undefined,
+      enabled: Boolean(mtnNumber || mtnUrl),
+    },
+    {
+      id: "crypto",
+      label: "Cryptomonnaie",
+      description: `Paiement crypto (${cryptoNetwork}). Après confirmation réseau, tu reçois le code d’accès.`,
+      href: cryptoUrl || undefined,
+      detail: cryptoAddress || undefined,
+      detailLabel: cryptoAddress ? `Adresse ${cryptoNetwork}` : undefined,
+      enabled: Boolean(cryptoUrl || cryptoAddress),
+    },
+    {
+      id: "api",
+      label: apiLabel || "Paiement API",
+      description:
+        "Checkout via agrégateur (CinetPay, Flutterwave, Paystack, Stripe…).",
+      href: apiUrl || undefined,
+      enabled: Boolean(apiUrl),
+    },
+  ];
+  return methods;
+}
+
+export const PAYMENT_METHODS = buildPaymentMethods();
+
+export const ENABLED_PAYMENT_METHODS = PAYMENT_METHODS.filter((m) => m.enabled);
+
+export function hasAnyPaymentMethod() {
+  return ENABLED_PAYMENT_METHODS.length > 0;
+}
+
+
 export const PARTNERS: Partner[] = [
   {
     id: "xm",

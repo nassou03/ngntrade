@@ -20,7 +20,9 @@ import {
   PREMIUM_PARTNERS,
   PREMIUM_ACCESS_CODE,
   PREMIUM_STORAGE_KEY,
+  hasAnyPaymentMethod,
 } from "@/lib/monetization";
+import { PaymentMethods } from "@/components/premium/payment-methods";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/premium")({ component: PremiumPage });
@@ -47,6 +49,7 @@ function readUnlocked(): boolean {
 
 function PremiumPage() {
   const hasCheckout = Boolean(PREMIUM_CHECKOUT_URL.trim());
+  const hasPay = hasAnyPaymentMethod();
   const hasAccessCode = Boolean(PREMIUM_ACCESS_CODE.trim());
   const [unlocked, setUnlocked] = useState(false);
   const [code, setCode] = useState("");
@@ -140,27 +143,9 @@ function PremiumPage() {
               <Button asChild className="mt-6 w-full" variant="outline">
                 <Link to="/analyzer">Continuer gratuitement</Link>
               </Button>
-            ) : hasCheckout ? (
-              <Button asChild className="mt-6 w-full">
-                <a
-                  href={PREMIUM_CHECKOUT_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <ExternalLink className="size-4" />
-                  S&apos;abonner — ouvrir le paiement
-                </a>
-              </Button>
             ) : (
-              <div className="mt-6 space-y-2">
-                <Button className="w-full" disabled>
-                  Paiement bientôt disponible
-                </Button>
-                <p className="text-center text-[11px] text-subtle">
-                  Configure{" "}
-                  <code className="text-[10px]">VITE_PREMIUM_CHECKOUT</code> sur
-                  Vercel pour activer le lien.
-                </p>
+              <div className="mt-6">
+                <PaymentMethods compact />
               </div>
             )}
           </article>
@@ -204,18 +189,9 @@ function PremiumPage() {
                 après abonnement. Tu peux déjà voir la liste des avantages
                 ci-dessus.
               </p>
-              {hasCheckout ? (
-                <Button asChild className="mt-5 w-full">
-                  <a
-                    href={PREMIUM_CHECKOUT_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink className="size-4" />
-                    Payer et s&apos;abonner
-                  </a>
-                </Button>
-              ) : null}
+              <div className="mt-5">
+                <PaymentMethods compact />
+              </div>
               {hasAccessCode ? (
                 <div className="mt-5 space-y-2 border-t border-border/60 pt-5 text-left">
                   <Label htmlFor="premium-code">Déjà abonné ? Entre ton code</Label>
