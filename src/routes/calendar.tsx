@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { addDays, format, isSameDay, startOfWeek } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useMemo, useState } from "react";
@@ -11,7 +12,9 @@ import {
   type Impact,
   type MacroEvent,
 } from "@/lib/calendar/events";
+import { getCalendarEvents } from "@/lib/calendar/server";
 import { cn } from "@/lib/utils";
+import { RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/calendar")({ component: CalendarPage });
 
@@ -29,18 +32,30 @@ function CalendarPage() {
   const [currencyFilter, setCurrencyFilter] = useState<CurrencyFilter>("all");
   const [onlyWithResult, setOnlyWithResult] = useState(false);
 
+  const { data, isLoading, isFetching, refetch, isError } = useQuery({
+    queryKey: ["macro-calendar"],
+    queryFn: () => getCalendarEvents(),
+    staleTime: 10 * 60_000,
+    refetchInterval: 15 * 60_000,
+  });
+
+  const allEvents: MacroEvent[] = data?.events?.length
+    ? data.events
+    : MACRO_EVENTS;
+  const source = data?.source ?? "curated";
+
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
   const days = Array.from({ length: 21 }, (_, i) => addDays(weekStart, i));
 
   const filtered = useMemo(() => {
-    return MACRO_EVENTS.filter((e) => {
+    return allEvents.filter((e) => {
       if (impactFilter !== "all" && e.impact !== impactFilter) return false;
       if (currencyFilter !== "all" && e.currency !== currencyFilter)
         return false;
       if (onlyWithResult && e.actual == null) return false;
       return true;
     });
-  }, [impactFilter, currencyFilter, onlyWithResult]);
+  }, [allEvents, impactFilter, currencyFilter, onlyWithResult]);
 
   const events = useMemo(
     () =>
@@ -55,21 +70,48 @@ function CalendarPage() {
       filtered
         .filter((e) => e.impact === "high" && new Date(e.at) >= today)
         .sort((a, b) => a.at.localeCompare(b.at))
-        .slice(0, 6),
+        .slice(0, 8),
     [filtered, today],
   );
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 pb-28 md:pb-12">
-      <p className="section-kicker">Macro</p>
-      <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">
-        Calendrier économique
-      </h1>
-      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-        Sorties majeures et lecture d’impact (réel vs consensus). Filtre par
-        importance et devise. Ce n’est pas un signal d’achat/vente — planifie
-        autour de la volatilité.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="section-kicker">Macro</p>
+          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">
+            Calendrier économique
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            Live soft gratuit (fenêtre ~2 semaines) + analyse d’impact réel vs
+            consensus. Filtres par importance et devise.
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2">
+            <Badge variant={source === "live" ? "bull" : "outline"}>
+              {source === "live" ? "Live soft" : "Secours curaté"}
+            </Badge>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={isFetching}
+              onClick={() => void refetch()}
+            >
+              <RefreshCw
+                className={cn("size-3.5", isFetching && "animate-spin")}
+              />
+              Actualiser
+            </Button>
+          </div>
+          {data?.error ? (
+            <p className="max-w-xs text-right text-[11px] text-warn">
+              {data.error}
+            </p>
+          ) : null}
+        </div>
+      </div>
 
       {/* Filters */}
       <div className="mt-6 space-y-3 rounded-2xl border border-border/80 bg-card/80 p-4">
@@ -128,8 +170,10 @@ function CalendarPage() {
           Uniquement les événements avec résultat publié
         </label>
         <p className="text-[11px] text-subtle">
-          {filtered.length} événement{filtered.length > 1 ? "s" : ""} avec les
-          filtres actuels
+          {isLoading
+            ? "Chargement du calendrier…"
+            : `${filtered.length} événement${filtered.length > 1 ? "s" : ""} avec les filtres actuels`}
+          {isError ? " · erreur réseau, secours local" : ""}
         </p>
       </div>
 
@@ -179,8 +223,7 @@ function CalendarPage() {
           {events.length === 0 ? (
             <p className="rounded-2xl border border-border/80 bg-card/80 p-6 text-sm text-muted-foreground">
               Aucun événement avec ces filtres ce jour. Élargis les filtres ou
-              choisis un autre jour — fenêtre potentiellement plus calme pour un
-              plan technique.
+              choisis un autre jour.
             </p>
           ) : (
             events.map((e) => <EventCard key={e.id} event={e} />)
@@ -224,11 +267,11 @@ function CalendarPage() {
             </ul>
           </div>
           <div className="rounded-2xl border border-border/80 bg-elevated/30 p-4 text-xs leading-relaxed text-muted-foreground">
-            <p className="font-medium text-foreground">Rappel risque</p>
+            <p className="font-medium text-foreground">Source live soft</p>
             <p className="mt-1">
-              Les analyses d’impact sont éducatives. Un « beat » n’implique pas
-              automatiquement un trade. Spreads, slippage et gaps sont élevés
-              autour des releases high impact.
+              Données agrégées gratuites (sans clé API). Cache ~15 min. Si le
+              flux est indisponible, le calendrier curaté de secours s’affiche.
+              Lecture éducative — pas un conseil d’investissement.
             </p>
           </div>
         </aside>
@@ -308,16 +351,9 @@ function ImpactBadge({ impact }: { impact: Impact }) {
   return <Badge>Low</Badge>;
 }
 
-function SurpriseBadge({
-  kind,
-  label,
-}: {
-  kind: string;
-  label: string;
-}) {
+function SurpriseBadge({ kind, label }: { kind: string; label: string }) {
   if (kind === "beat") return <Badge variant="bull">{label}</Badge>;
   if (kind === "miss") return <Badge variant="bear">{label}</Badge>;
-  if (kind === "inline") return <Badge variant="outline">{label}</Badge>;
   return <Badge variant="outline">{label}</Badge>;
 }
 
