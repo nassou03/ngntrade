@@ -13,26 +13,46 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: APP_NAME },
+      {
+        title:
+          "Ngntrade — Analyse de graphiques trading (Forex, Crypto, Indices)",
+      },
       {
         name: "description",
         content:
-          "Ngntrade lit vos graphiques de trading. Forex, crypto, matières premières, indices — biais, niveaux et plan de trade. Outil éducatif, pas un conseil financier.",
+          "Ngntrade lit vos graphiques de trading. Multi-timeframe H1 M15 M5, entrée sniper, stop ~1 ATR, calendrier économique. Forex, crypto, matières, indices. Outil éducatif.",
+      },
+      {
+        name: "keywords",
+        content:
+          "analyse graphique trading, forex, crypto, calendrier économique, plan de trade, MetaTrader, sniper entry, Ngntrade",
       },
       { name: "theme-color", content: "#08090c" },
       { name: "robots", content: "index, follow" },
-      { property: "og:title", content: "Ngntrade — plan de trade depuis vos graphiques" },
+      { name: "googlebot", content: "index, follow" },
+      {
+        property: "og:title",
+        content: "Ngntrade — plan de trade depuis vos graphiques",
+      },
       {
         property: "og:description",
         content:
-          "Déposez une capture. Recevez biais, supports, résistances, entrée, stop et cibles. Forex · Crypto · Matières · Indices.",
+          "Déposez H1, M15, M5. Recevez biais, limit sniper, stop ~1 ATR et cibles. Forex · Crypto · Indices.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://ngntrade.vercel.app/" },
       { property: "og:locale", content: "fr_FR" },
+      { property: "og:site_name", content: "Ngntrade" },
+      { property: "og:image", content: "https://ngntrade.vercel.app/og.jpg" },
       { name: "twitter:card", content: "summary_large_image" },
+      {
+        name: "twitter:title",
+        content: "Ngntrade — analyse de graphiques trading",
+      },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      { rel: "canonical", href: "https://ngntrade.vercel.app/" },
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
