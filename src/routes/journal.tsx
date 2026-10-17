@@ -17,6 +17,14 @@ import type { Market, Trade, TradeStatus } from "@/lib/analysis/types";
 import { DIRECTION_LABELS, MARKET_LABELS } from "@/lib/analysis/types";
 import { useAppStore } from "@/lib/store";
 import { cn, formatPrice } from "@/lib/utils";
+import {
+  DISCIPLINE_CHECKS,
+  disciplineScore,
+  loadDiscipline,
+  saveDiscipline,
+  todayKey,
+  type DisciplineDay,
+} from "@/lib/premium/content";
 
 export const Route = createFileRoute("/journal")({ component: JournalPage });
 
@@ -41,6 +49,27 @@ function JournalPage() {
   }, [seedDemo]);
 
   const hasDemo = trades.some((t) => t.id.startsWith("demo-"));
+  const [discipline, setDiscipline] = useState<DisciplineDay>(() => ({
+    date: todayKey(),
+    checks: {},
+  }));
+
+  useEffect(() => {
+    setDiscipline(loadDiscipline());
+  }, []);
+
+  function toggleCheck(id: string) {
+    setDiscipline((prev) => {
+      const next: DisciplineDay = {
+        date: prev.date || todayKey(),
+        checks: { ...prev.checks, [id]: !prev.checks[id] },
+      };
+      saveDiscipline(next);
+      return next;
+    });
+  }
+
+  const score = disciplineScore(discipline.checks);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 pb-28 md:pb-12">
@@ -66,6 +95,57 @@ function JournalPage() {
           </Button>
         </div>
       </div>
+
+      <section className="mt-8 rounded-2xl border border-border/80 bg-card/90 p-5 md:p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-medium tracking-wide text-accent uppercase">
+              Discipline du jour
+            </p>
+            <h2 className="mt-1 font-display text-lg font-semibold">
+              Checklist avant / pendant la session
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Local sur cet appareil · {discipline.date}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="font-mono text-2xl tabular-nums font-semibold">{score}%</p>
+            <p className="text-[11px] text-subtle">score discipline</p>
+          </div>
+        </div>
+        <ul className="mt-4 space-y-2">
+          {DISCIPLINE_CHECKS.map((c) => {
+            const on = Boolean(discipline.checks[c.id]);
+            return (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  onClick={() => toggleCheck(c.id)}
+                  className={cn(
+                    "flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors",
+                    on
+                      ? "border-accent/40 bg-accent/10 text-foreground"
+                      : "border-border/60 bg-elevated/30 text-muted-foreground hover:border-border",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border text-[10px]",
+                      on
+                        ? "border-accent bg-accent text-accent-foreground"
+                        : "border-border",
+                    )}
+                  >
+                    {on ? "✓" : ""}
+                  </span>
+                  <span>{c.label}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
 
       <div className="mt-8 space-y-3">
         {trades.length === 0 ? (

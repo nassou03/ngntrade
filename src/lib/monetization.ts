@@ -244,6 +244,9 @@ export const PLANS: Plan[] = [
       "Paramètres recommandés (risque / sessions)",
       "Mises à jour du bot quand disponibles",
       "Accès prioritaire aux nouveaux outils",
+        "Playbook de session",
+        "Pack 5 fiches setups",
+        "Checklist discipline (journal)",
     ],
   },
 ];

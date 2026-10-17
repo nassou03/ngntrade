@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input, Label } from "@/components/ui/input";
+import { Input, Label, Textarea } from "@/components/ui/input";
 import {
   PLANS,
   LEGAL_DISCLAIMER,
@@ -29,6 +29,12 @@ import {
   writePremiumSession,
   clearPremiumSession,
 } from "@/lib/premium/codes";
+import {
+  PLAYBOOK_DEFAULT,
+  SETUP_SHEETS,
+  loadPlaybookOverride,
+  savePlaybookOverride,
+} from "@/lib/premium/content";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/premium")({ component: PremiumPage });
@@ -58,6 +64,11 @@ function PremiumPage() {
   const [genNote, setGenNote] = useState("");
   const [generated, setGenerated] = useState<string | null>(null);
   const [genExp, setGenExp] = useState<string | null>(null);
+  const [playbook, setPlaybook] = useState(PLAYBOOK_DEFAULT);
+  const [editPlaybook, setEditPlaybook] = useState(false);
+  const [pbBias, setPbBias] = useState(PLAYBOOK_DEFAULT.bias);
+  const [pbPairs, setPbPairs] = useState(PLAYBOOK_DEFAULT.pairs.join("\n"));
+  const [pbAvoid, setPbAvoid] = useState(PLAYBOOK_DEFAULT.avoid.join("\n"));
 
   useEffect(() => {
     const s = readPremiumSession();
@@ -68,6 +79,14 @@ function PremiumPage() {
       } else {
         setExpiresLabel(null);
       }
+    }
+    const o = loadPlaybookOverride();
+    if (o) {
+      const merged = { ...PLAYBOOK_DEFAULT, ...o };
+      setPlaybook(merged);
+      setPbBias(merged.bias);
+      setPbPairs((merged.pairs ?? []).join("\n"));
+      setPbAvoid((merged.avoid ?? []).join("\n"));
     }
   }, []);
 
@@ -362,6 +381,131 @@ function PremiumPage() {
 
       {/* Affiliation — public (revenu passif) */}
       
+
+      {/* Playbook + Setups — visibles si débloqué, teaser sinon */}
+      {unlocked ? (
+        <>
+          <section className="mt-12 rounded-2xl border border-border/80 bg-card/90 p-6 shadow-sm md:p-8">
+            <p className="section-kicker">Playbook de session</p>
+            <h2 className="mt-1 font-display text-2xl font-semibold">
+              Cadre du jour
+            </h2>
+            <p className="mt-1 text-xs text-subtle">{playbook.updatedLabel}</p>
+            <div className="mt-5 space-y-4 text-sm">
+              <div>
+                <p className="text-xs font-semibold tracking-wide text-accent uppercase">
+                  Biais
+                </p>
+                <p className="mt-1 text-muted-foreground leading-relaxed">
+                  {playbook.bias}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold tracking-wide text-accent uppercase">
+                  Paires / indices à surveiller
+                </p>
+                <ul className="mt-2 space-y-1 text-muted-foreground">
+                  {playbook.pairs.map((x) => (
+                    <li key={x} className="flex gap-2">
+                      <span className="text-accent">•</span>
+                      <span>{x}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs font-semibold tracking-wide text-accent uppercase">
+                  À éviter
+                </p>
+                <ul className="mt-2 space-y-1 text-muted-foreground">
+                  {playbook.avoid.map((x) => (
+                    <li key={x} className="flex gap-2">
+                      <span className="text-bear">•</span>
+                      <span>{x}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs font-semibold tracking-wide text-accent uppercase">
+                  Checklist express
+                </p>
+                <ul className="mt-2 space-y-1 text-muted-foreground">
+                  {playbook.checklist.map((x) => (
+                    <li key={x} className="flex gap-2">
+                      <Check className="mt-0.5 size-3.5 shrink-0 text-accent" />
+                      <span>{x}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-10">
+            <p className="section-kicker">Pack setups</p>
+            <h2 className="mt-1 font-display text-2xl font-semibold">
+              5 fiches prêtes à trader
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Conditions, entrée, stop ~1 ATR, cibles et erreurs fréquentes.
+            </p>
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              {SETUP_SHEETS.map((s) => (
+                <article
+                  key={s.id}
+                  className="card-lift rounded-2xl border border-border/80 bg-card/90 p-5"
+                >
+                  <h3 className="font-display text-lg font-semibold">{s.title}</h3>
+                  <p className="mt-1 text-xs text-subtle">
+                    {s.session} · {s.bias}
+                  </p>
+                  <p className="mt-3 text-xs font-semibold text-accent">Conditions</p>
+                  <ul className="mt-1 space-y-0.5 text-sm text-muted-foreground">
+                    {s.conditions.map((c) => (
+                      <li key={c}>• {c}</li>
+                    ))}
+                  </ul>
+                  <p className="mt-3 text-xs font-semibold text-accent">Entrée</p>
+                  <p className="text-sm text-muted-foreground">{s.entry}</p>
+                  <p className="mt-2 text-xs font-semibold text-accent">Stop</p>
+                  <p className="text-sm text-muted-foreground">{s.stop}</p>
+                  <p className="mt-2 text-xs font-semibold text-accent">Cibles</p>
+                  <p className="text-sm text-muted-foreground">{s.targets}</p>
+                  <p className="mt-2 text-xs font-semibold text-bear">Invalidation</p>
+                  <p className="text-sm text-muted-foreground">{s.invalidation}</p>
+                  <p className="mt-2 text-xs font-semibold text-subtle">Erreurs à éviter</p>
+                  <ul className="mt-1 space-y-0.5 text-sm text-muted-foreground">
+                    {s.mistakes.map((m) => (
+                      <li key={m}>• {m}</li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          </section>
+        </>
+      ) : (
+        <section className="mt-10 rounded-2xl border border-border/60 bg-card/50 p-6">
+          <p className="section-kicker">Inclus en Premium</p>
+          <h2 className="mt-1 font-display text-xl font-semibold">
+            Playbook + 5 fiches setups
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Cadre de session, paires à surveiller, et fiches FVG, break & retest,
+            killzones Londres / NY, order block. Débloque avec ton code en haut de page.
+          </p>
+          <ul className="mt-4 grid gap-2 sm:grid-cols-2 text-sm text-muted-foreground">
+            {SETUP_SHEETS.map((s) => (
+              <li key={s.id} className="flex gap-2">
+                <Lock className="mt-0.5 size-3.5 shrink-0 text-accent" />
+                {s.title}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* Admin : générer un code unique par client */}
       <section className="mt-12 rounded-2xl border border-dashed border-border/80 bg-elevated/20 p-5 md:p-6">
         <button
@@ -456,6 +600,70 @@ function PremiumPage() {
                 </Button>
               </div>
             ) : null}
+
+            <div className="mt-6 border-t border-border/60 pt-4">
+              <p className="text-sm font-semibold">Mettre à jour le playbook</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Visible pour les abonnés débloqués (stocké sur cet appareil admin).
+              </p>
+              {!editPlaybook ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="mt-2"
+                  onClick={() => setEditPlaybook(true)}
+                >
+                  Éditer le playbook
+                </Button>
+              ) : (
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <Label>Biais</Label>
+                    <Textarea
+                      className="mt-1 min-h-[80px]"
+                      value={pbBias}
+                      onChange={(e) => setPbBias(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>Paires (une par ligne)</Label>
+                    <Textarea
+                      className="mt-1 min-h-[80px]"
+                      value={pbPairs}
+                      onChange={(e) => setPbPairs(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>À éviter (une par ligne)</Label>
+                    <Textarea
+                      className="mt-1 min-h-[80px]"
+                      value={pbAvoid}
+                      onChange={(e) => setPbAvoid(e.target.value)}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      const next = {
+                        ...PLAYBOOK_DEFAULT,
+                        bias: pbBias.trim(),
+                        pairs: pbPairs.split("\n").map((x) => x.trim()).filter(Boolean),
+                        avoid: pbAvoid.split("\n").map((x) => x.trim()).filter(Boolean),
+                        updatedLabel: "Mis à jour le " + new Date().toLocaleDateString("fr-FR"),
+                      };
+                      savePlaybookOverride(next);
+                      setPlaybook(next);
+                      setEditPlaybook(false);
+                      toast.success("Playbook enregistré sur cet appareil");
+                    }}
+                  >
+                    Enregistrer le playbook
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         ) : null}
       </section>
