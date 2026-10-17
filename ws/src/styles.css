@@ -1,0 +1,230 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Syne", "IBM Plex Sans", ui-sans-serif, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --color-background: #07080b;
+  --color-foreground: #eef0f5;
+  --color-card: #0e1016;
+  --color-card-foreground: #eef0f5;
+  --color-elevated: #161922;
+  --color-muted-foreground: #9aa3b5;
+  --color-subtle: #6a7280;
+  --color-border: color-mix(in oklab, #eef0f5 10%, transparent);
+  --color-input: color-mix(in oklab, #eef0f5 14%, transparent);
+  --color-ring: #7eb8ff;
+  --color-primary: #eef0f5;
+  --color-primary-foreground: #07080b;
+  --color-accent: #8ec5ff;
+  --color-accent-foreground: #07080b;
+  --color-bull: #3ecf8e;
+  --color-bear: #f07178;
+  --color-warn: #e6b84d;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-quick: 150ms;
+  --duration-fast: 250ms;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  html {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    min-height: 100dvh;
+    font-family: var(--font-sans);
+    background:
+      radial-gradient(
+        1000px 520px at 12% -12%,
+        color-mix(in oklab, #3b82f6 12%, transparent),
+        transparent 55%
+      ),
+      radial-gradient(
+        800px 400px at 92% 8%,
+        color-mix(in oklab, #3ecf8e 8%, transparent),
+        transparent 50%
+      ),
+      radial-gradient(
+        600px 300px at 50% 100%,
+        color-mix(in oklab, #8ec5ff 5%, transparent),
+        transparent 40%
+      ),
+      var(--color-background);
+    color: var(--color-foreground);
+    background-attachment: fixed;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-accent) 35%, transparent);
+    color: var(--color-foreground);
+  }
+}
+
+/* Glass surfaces */
+.glass {
+  background: color-mix(in oklab, var(--color-card) 72%, transparent);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+}
+
+.glass-strong {
+  background: color-mix(in oklab, var(--color-background) 78%, transparent);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+}
+
+/* Elevated card with subtle border glow on hover */
+.card-lift {
+  transition:
+    transform var(--duration-fast) var(--ease-smooth),
+    border-color var(--duration-fast) var(--ease-smooth),
+    box-shadow var(--duration-fast) var(--ease-smooth);
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklab, var(--color-accent) 28%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--color-accent) 12%, transparent),
+    0 12px 40px -16px color-mix(in oklab, #000 80%, transparent);
+}
+
+/* Section label */
+.section-kicker {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.shimmer-text {
+  background: linear-gradient(
+    90deg,
+    var(--color-muted-foreground) 0%,
+    var(--color-foreground) 45%,
+    var(--color-muted-foreground) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  color: transparent;
+  animation: ngn-shimmer 1.8s linear infinite;
+}
+
+@keyframes ngn-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes ngn-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: ngn-fade-up 0.5s var(--ease-smooth) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-text {
+    animation: none;
+    color: var(--color-accent);
+    background: none;
+  }
+  .animate-fade-up {
+    animation: none;
+  }
+  .card-lift:hover {
+    transform: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+
+/* Sniper / premium accents */
+.sniper-glow {
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 35%, transparent),
+    0 12px 40px -12px color-mix(in oklab, var(--accent) 40%, transparent);
+}
+
+/* Design phase 2 */
+.header-bar {
+  box-shadow: 0 1px 0 color-mix(in oklab, var(--color-border) 80%, transparent),
+    0 12px 40px -28px rgba(0, 0, 0, 0.65);
+}
+
+.nav-pill-active {
+  background: color-mix(in oklab, var(--color-accent) 16%, var(--color-elevated));
+  color: var(--color-foreground);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-accent) 35%, transparent);
+}
+
+.hero-mesh {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 0%, color-mix(in oklab, #3b82f6 18%, transparent), transparent 55%),
+    radial-gradient(ellipse 60% 50% at 90% 10%, color-mix(in oklab, #3ecf8e 12%, transparent), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 50% 100%, color-mix(in oklab, #8ec5ff 8%, transparent), transparent 45%);
+}
+
+.step-line {
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--color-accent) 40%, transparent),
+    color-mix(in oklab, var(--color-border) 80%, transparent)
+  );
+}
+
+
+/* Home premium surfaces */
+.hero-grid {
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--color-foreground) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--color-foreground) 4%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black 20%, transparent 75%);
+}
+
+.hero-mesh {
+  background:
+    radial-gradient(ellipse 90% 70% at 15% -10%, color-mix(in oklab, #3b82f6 22%, transparent), transparent 55%),
+    radial-gradient(ellipse 70% 55% at 95% 5%, color-mix(in oklab, #2dd4bf 14%, transparent), transparent 50%),
+    radial-gradient(ellipse 55% 45% at 55% 100%, color-mix(in oklab, #8ec5ff 10%, transparent), transparent 48%);
+}

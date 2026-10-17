@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ngntrade.vercel.app/sitemap.xml

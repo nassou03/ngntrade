@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Ngntrade",
+      "hasCanvas": false,
+      "bodyTextLen": 2272,
+      "bodyTextHash": "c3aaaeabea7c82391b9e53463e5521f7b2f5d0c30d84768661f5bf97dc0cad9e",
+      "bodyTextPrefix": "Ngntrade Marchés Nouvelle analyse Analyser Copilote Journal Perf",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Ngntrade",
+      "hasCanvas": false,
+      "bodyTextLen": 2248,
+      "bodyTextHash": "e84521e52e131c1df7f10473de2964779e407f4531b98b868b8f3277a7e9f1f0",
+      "bodyTextPrefix": "Ngntrade Analyser FOREX · CRYPTO · MATIÈRES · INDICES L’IA qui l",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}

@@ -1,0 +1,6 @@
+12:31:44.523Z  INFO Grok-Computer: persistent_shell_killguard_active { path: '/usr/local/bin/grok-killguard', harnessPid: '58' }
+12:31:44.575Z  INFO Grok-Computer: Starting Grok-Computer server
+12:31:44.593Z  INFO Grok-Computer: Starting idle session sweeper (idleTimeoutMs=3600000, sweepIntervalMs=60000)
+12:31:44.604Z  INFO Grok-Computer: HTTP server listening on 127.0.0.1:4242
+12:31:44.605Z  INFO Grok-Computer: Server started successfully
+12:31:45.463Z  INFO Grok-Computer: Seeding 14 bundled skill(s) into /root/.grok/skills: color, docx, ffmpeg, finance, image-gen-edit, imagemagick, mcp, memory-edit, pdf, pptx, skill-creator, skill-installer, tasks, xlsx
