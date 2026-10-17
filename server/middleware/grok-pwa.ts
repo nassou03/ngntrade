@@ -70,6 +70,55 @@ export default async function grokPwaMiddleware(
   const path = event.url.pathname;
   const urlWithQuery = path + event.url.search;
 
+  // SEO: plain text / XML (must not go through the SPA)
+  if (path === "/robots.txt") {
+    const robotsBody =
+      "User-agent: *\nAllow: /\n\nSitemap: https://ngntrade.vercel.app/sitemap.xml\n";
+    return new Response(robotsBody, {
+      status: 200,
+      headers: {
+        "content-type": "text/plain; charset=utf-8",
+        "cache-control": "public, max-age=3600",
+      },
+    });
+  }
+
+  if (path === "/sitemap.xml") {
+    const urls: [string, string, string][] = [
+      ["https://ngntrade.vercel.app/", "weekly", "1.0"],
+      ["https://ngntrade.vercel.app/analyzer", "weekly", "0.9"],
+      ["https://ngntrade.vercel.app/markets", "daily", "0.8"],
+      ["https://ngntrade.vercel.app/calendar", "daily", "0.8"],
+      ["https://ngntrade.vercel.app/offre", "weekly", "0.9"],
+      ["https://ngntrade.vercel.app/premium", "monthly", "0.6"],
+      ["https://ngntrade.vercel.app/copilot", "monthly", "0.5"],
+    ];
+    const urlXml = urls
+      .map(
+        ([loc, changefreq, priority]) =>
+          "  <url>\n    <loc>" +
+          loc +
+          "</loc>\n    <changefreq>" +
+          changefreq +
+          "</changefreq>\n    <priority>" +
+          priority +
+          "</priority>\n  </url>",
+      )
+      .join("\n");
+    const xml =
+      '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+      urlXml +
+      "\n</urlset>\n";
+    return new Response(xml, {
+      status: 200,
+      headers: {
+        "content-type": "application/xml; charset=utf-8",
+        "cache-control": "public, max-age=3600",
+      },
+    });
+  }
+
   if (path === "/__grok/manifest.webmanifest" || path === "/__grok/manifest.json") {
     return new Response(renderWebManifest(requestHost(event)), {
       headers: {
