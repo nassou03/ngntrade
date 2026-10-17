@@ -19,10 +19,16 @@ import {
   PREMIUM_CHECKOUT_URL,
   PREMIUM_PARTNERS,
   PREMIUM_ACCESS_CODE,
-  PREMIUM_STORAGE_KEY,
   hasAnyPaymentMethod,
 } from "@/lib/monetization";
 import { PaymentMethods } from "@/components/premium/payment-methods";
+import {
+  validatePremiumCode,
+  generatePremiumCode,
+  readPremiumSession,
+  writePremiumSession,
+  clearPremiumSession,
+} from "@/lib/premium/codes";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/premium")({ component: PremiumPage });
@@ -38,53 +44,95 @@ const EA_PARAMS = [
   { name: "Timeframe biais", value: "H1 (EMA 50)" },
 ];
 
-function readUnlocked(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.localStorage.getItem(PREMIUM_STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
 function PremiumPage() {
   const hasCheckout = Boolean(PREMIUM_CHECKOUT_URL.trim());
   const hasPay = hasAnyPaymentMethod();
   const hasAccessCode = Boolean(PREMIUM_ACCESS_CODE.trim());
   const [unlocked, setUnlocked] = useState(false);
+  const [expiresLabel, setExpiresLabel] = useState<string | null>(null);
   const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [adminPass, setAdminPass] = useState("");
+  const [genDays, setGenDays] = useState(30);
+  const [genNote, setGenNote] = useState("");
+  const [generated, setGenerated] = useState<string | null>(null);
+  const [genExp, setGenExp] = useState<string | null>(null);
 
   useEffect(() => {
-    setUnlocked(readUnlocked());
+    const s = readPremiumSession();
+    if (s) {
+      setUnlocked(true);
+      if (s.exp > 0) {
+        setExpiresLabel(new Date(s.exp * 1000).toLocaleDateString("fr-FR"));
+      } else {
+        setExpiresLabel(null);
+      }
+    }
   }, []);
 
-  function unlockWithCode() {
-    const expected = PREMIUM_ACCESS_CODE.trim();
-    if (!expected) {
-      toast.error("Code d’accès non configuré côté serveur.");
+  async function unlockWithCode() {
+    const trimmed = code.trim();
+    if (!trimmed) {
+      toast.error("Entre un code");
       return;
     }
-    if (code.trim() === expected) {
-      try {
-        window.localStorage.setItem(PREMIUM_STORAGE_KEY, "1");
-      } catch {
-        /* ignore */
+    setBusy(true);
+    try {
+      const res = await validatePremiumCode({ data: { code: trimmed } });
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
       }
+      writePremiumSession(trimmed, res.exp);
       setUnlocked(true);
-      toast.success("Premium débloqué sur cet appareil");
-    } else {
-      toast.error("Code incorrect");
+      setExpiresLabel(
+        res.exp > 0
+          ? new Date(res.exp * 1000).toLocaleDateString("fr-FR")
+          : null,
+      );
+      toast.success(
+        res.exp > 0
+          ? `Premium débloqué jusqu’au ${new Date(res.exp * 1000).toLocaleDateString("fr-FR")}`
+          : "Premium débloqué sur cet appareil",
+      );
+    } catch (e) {
+      toast.error("Erreur de validation. Réessaie.");
+    } finally {
+      setBusy(false);
     }
   }
 
   function lockAgain() {
-    try {
-      window.localStorage.removeItem(PREMIUM_STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
+    clearPremiumSession();
     setUnlocked(false);
+    setExpiresLabel(null);
     toast.message("Contenu Premium verrouillé à nouveau");
+  }
+
+  async function onGenerateCode() {
+    setBusy(true);
+    setGenerated(null);
+    try {
+      const res = await generatePremiumCode({
+        data: {
+          adminPassword: adminPass,
+          days: genDays,
+          note: genNote,
+        },
+      });
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      setGenerated(res.code);
+      setGenExp(res.expLabel);
+      toast.success(`Code généré (${res.days} jours)`);
+    } catch {
+      toast.error("Impossible de générer le code");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -131,10 +179,11 @@ function PremiumPage() {
             <Button
               type="button"
               className="h-12 shrink-0 px-8"
-              onClick={unlockWithCode}
+              disabled={busy}
+              onClick={() => void unlockWithCode()}
             >
               <Unlock className="size-4" />
-              Débloquer
+              {busy ? "…" : "Débloquer"}
             </Button>
           </div>
           {!hasAccessCode ? (
@@ -151,7 +200,10 @@ function PremiumPage() {
       ) : (
         <div className="mt-6 flex flex-wrap items-center gap-3 rounded-xl border border-bull/30 bg-bull/10 px-4 py-3 text-sm">
           <Unlock className="size-4 text-bull" />
-          <span className="font-medium">Premium débloqué sur cet appareil.</span>
+          <span className="font-medium">
+            Premium débloqué
+            {expiresLabel ? ` jusqu’au ${expiresLabel}` : " sur cet appareil"}.
+          </span>
           <Button type="button" size="sm" variant="outline" onClick={lockAgain}>
             Verrouiller
           </Button>
@@ -309,7 +361,106 @@ function PremiumPage() {
       )}
 
       {/* Affiliation — public (revenu passif) */}
-      <section className="mt-12">
+      
+      {/* Admin : générer un code unique par client */}
+      <section className="mt-12 rounded-2xl border border-dashed border-border/80 bg-elevated/20 p-5 md:p-6">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between text-left"
+          onClick={() => setAdminOpen((v) => !v)}
+        >
+          <div>
+            <p className="text-xs font-semibold tracking-wide text-subtle uppercase">
+              Réservé au propriétaire
+            </p>
+            <h2 className="font-display text-base font-semibold">
+              Générer un code Premium (1 client)
+            </h2>
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {adminOpen ? "Masquer" : "Ouvrir"}
+          </span>
+        </button>
+        {adminOpen ? (
+          <div className="mt-4 space-y-3 border-t border-border/60 pt-4">
+            <p className="text-xs text-muted-foreground">
+              Après vérification du paiement, génère un code unique (ex. 30 jours),
+              envoie-le sur WhatsApp. Le client le colle en haut de cette page.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="admin-pass">Mot de passe admin</Label>
+                <Input
+                  id="admin-pass"
+                  type="password"
+                  value={adminPass}
+                  onChange={(e) => setAdminPass(e.target.value)}
+                  placeholder="PREMIUM_ADMIN_PASSWORD"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="gen-days">Durée (jours)</Label>
+                <Input
+                  id="gen-days"
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={genDays}
+                  onChange={(e) => setGenDays(Number(e.target.value) || 30)}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="gen-note">Note (optionnel, ex. prénom client)</Label>
+              <Input
+                id="gen-note"
+                value={genNote}
+                onChange={(e) => setGenNote(e.target.value)}
+                placeholder="Jean — MTN 17/10"
+                className="mt-1"
+              />
+            </div>
+            <Button
+              type="button"
+              disabled={busy || !adminPass.trim()}
+              onClick={() => void onGenerateCode()}
+            >
+              Générer le code
+            </Button>
+            {generated ? (
+              <div className="rounded-xl border border-accent/40 bg-background p-4">
+                <p className="text-xs text-muted-foreground">
+                  Code à envoyer au client
+                  {genExp ? ` · valable jusqu’au ${genExp}` : ""}
+                </p>
+                <code className="mt-2 block break-all font-mono text-sm text-foreground">
+                  {generated}
+                </code>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="mt-3"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(generated);
+                      toast.success("Code copié");
+                    } catch {
+                      toast.error("Copie impossible");
+                    }
+                  }}
+                >
+                  Copier le code
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
+
+<section className="mt-12">
         <p className="section-kicker">Affiliation</p>
         <h2 className="mt-1 font-display text-xl font-semibold tracking-tight">
           Ouvrir un compte chez un partenaire
