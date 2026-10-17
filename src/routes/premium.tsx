@@ -103,6 +103,61 @@ function PremiumPage() {
         </Link>
       </p>
 
+      {/* CASE CODE — toujours visible en haut si non débloqué */}
+      {!unlocked ? (
+        <section
+          id="code-acces"
+          className="mt-8 rounded-2xl border-2 border-accent bg-card p-5 shadow-md md:p-6"
+        >
+          <p className="text-xs font-semibold tracking-wide text-accent uppercase">
+            Accès abonné
+          </p>
+          <h2 className="mt-1 font-display text-xl font-semibold">
+            Colle ton code ici
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Après paiement MTN ou crypto, tu reçois le code sur WhatsApp. Colle-le
+            ci-dessous pour débloquer le contenu Premium.
+          </p>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <Input
+              id="premium-code-top"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="Ex. NGN-PREMIUM-2026"
+              autoComplete="off"
+              className="h-12 flex-1 text-base"
+            />
+            <Button
+              type="button"
+              className="h-12 shrink-0 px-8"
+              onClick={unlockWithCode}
+            >
+              <Unlock className="size-4" />
+              Débloquer
+            </Button>
+          </div>
+          {!hasAccessCode ? (
+            <p className="mt-2 text-xs text-warn">
+              Attention : configure VITE_PREMIUM_ACCESS_CODE sur Vercel puis
+              Redeploy, sinon le code ne pourra pas être validé.
+            </p>
+          ) : (
+            <p className="mt-2 text-xs text-subtle">
+              Un seul code pour tous les abonnés. Ne le partage pas publiquement.
+            </p>
+          )}
+        </section>
+      ) : (
+        <div className="mt-6 flex flex-wrap items-center gap-3 rounded-xl border border-bull/30 bg-bull/10 px-4 py-3 text-sm">
+          <Unlock className="size-4 text-bull" />
+          <span className="font-medium">Premium débloqué sur cet appareil.</span>
+          <Button type="button" size="sm" variant="outline" onClick={lockAgain}>
+            Verrouiller
+          </Button>
+        </div>
+      )}
+
       {/* Plans — always visible (teaser) */}
       <div className="mt-8 grid gap-4 md:grid-cols-2">
         {PLANS.map((plan) => (
@@ -152,77 +207,28 @@ function PremiumPage() {
         ))}
       </div>
 
-      {/* Locked vs unlocked content */}
+      {/* Contenu EA verrouillé / débloqué */}
       {!unlocked ? (
-        <section className="relative mt-12 overflow-hidden rounded-2xl border border-border/80 bg-card/90">
-          <div className="pointer-events-none select-none p-6 blur-[2px] md:p-8" aria-hidden>
-            <p className="section-kicker">MetaTrader 5</p>
-            <h2 className="mt-1 font-display text-2xl font-semibold">
-              EA SMC MultiSetup PRO v5.30
-            </h2>
-            <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-              Fichier .mq5, guide d&apos;installation, paramètres recommandés et
-              mises à jour — réservés aux membres Premium.
-            </p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {EA_PARAMS.slice(0, 4).map((p) => (
-                <div
-                  key={p.name}
-                  className="rounded-xl border border-border bg-elevated/50 px-3 py-2"
-                >
-                  <p className="text-[11px] text-subtle">{p.name}</p>
-                  <p className="mt-0.5 font-mono text-sm">••••</p>
-                </div>
-              ))}
+        <section className="mt-10 rounded-2xl border border-border/80 bg-card/90 p-6 md:p-8">
+          <div className="flex items-center gap-3">
+            <Lock className="size-5 text-accent" />
+            <div>
+              <h3 className="font-display text-lg font-semibold">
+                Téléchargement Premium (verrouillé)
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Entre ton code en haut de cette page pour voir l’EA et le guide.
+              </p>
             </div>
           </div>
-          <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-[2px]">
-            <div className="mx-4 max-w-md rounded-2xl border border-border/80 bg-card p-6 text-center shadow-lg">
-              <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-accent/30 bg-accent/10">
-                <Lock className="size-5 text-accent" />
-              </div>
-              <h3 className="mt-4 font-display text-lg font-semibold">
-                Contenu Premium verrouillé
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Téléchargement EA, guide et paramètres détaillés : uniquement
-                après abonnement. Tu peux déjà voir la liste des avantages
-                ci-dessus.
-              </p>
-              <div className="mt-5">
-                <PaymentMethods compact />
-              </div>
-              {hasAccessCode ? (
-                <div className="mt-5 space-y-2 border-t border-border/60 pt-5 text-left">
-                  <Label htmlFor="premium-code">Déjà abonné ? Entre ton code</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="premium-code"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                      placeholder="Code reçu après paiement"
-                      autoComplete="off"
-                    />
-                    <Button type="button" onClick={unlockWithCode}>
-                      <Unlock className="size-4" />
-                      OK
-                    </Button>
-                  </div>
-                  <p className="text-[11px] text-subtle">
-                    Le code est envoyé après l&apos;achat (email / message).
-                  </p>
-                </div>
-              ) : (
-                <p className="mt-4 text-[11px] text-subtle">
-                  Après configuration du code d&apos;accès (
-                  <code className="text-[10px]">VITE_PREMIUM_ACCESS_CODE</code>
-                  ), les abonnés pourront débloquer ici.
-                </p>
-              )}
-            </div>
+          <div className="mt-4">
+            <Button asChild variant="outline" size="sm">
+              <a href="#code-acces">Aller coller mon code</a>
+            </Button>
           </div>
         </section>
       ) : (
+
         <section className="mt-12 rounded-2xl border border-border/80 bg-card/90 p-6 shadow-sm md:p-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>

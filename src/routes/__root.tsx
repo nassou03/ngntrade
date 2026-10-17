@@ -29,6 +29,13 @@ export const Route = createRootRoute({
       },
       { name: "theme-color", content: "#08090c" },
       { name: "robots", content: "index, follow" },
+      // Fichier HTML aussi servi via middleware; meta en secours si fourni
+      {
+        name: "google-site-verification",
+        content: (typeof import.meta !== "undefined" && import.meta.env?.VITE_GOOGLE_SITE_VERIFICATION)
+          ? String(import.meta.env.VITE_GOOGLE_SITE_VERIFICATION)
+          : "google5e20f56775f7a85d",
+      },
       { name: "googlebot", content: "index, follow" },
       {
         property: "og:title",
