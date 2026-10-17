@@ -70,6 +70,20 @@ export default async function grokPwaMiddleware(
   const path = event.url.pathname;
   const urlWithQuery = path + event.url.search;
 
+  // Google Search Console HTML file verification
+  if (
+    path === "/google5e20f56775f7a85d.html" ||
+    path === "/google5e20f56775f7a85d.html/"
+  ) {
+    return new Response("google-site-verification: google5e20f56775f7a85d.html", {
+      status: 200,
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "no-cache",
+      },
+    });
+  }
+
   // SEO: plain text / XML (must not go through the SPA)
   if (path === "/robots.txt") {
     const robotsBody =
