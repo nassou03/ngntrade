@@ -30,10 +30,11 @@ export function AnalyzerWorkspace() {
   const setActive = useAppStore((s) => s.setActiveAnalysis);
 
   const [images, setImages] = useState<{
+    h4: string | null;
     h1: string | null;
     m15: string | null;
     m5: string | null;
-  }>({ h1: pendingImage, m15: null, m5: null });
+  }>({ h4: null, h1: pendingImage, m15: null, m5: null });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [market, setMarket] = useState<Market | "auto">(pendingInput?.market ?? "auto");
@@ -55,7 +56,7 @@ export function AnalyzerWorkspace() {
     }
   }, [pendingImage, setPending]);
 
-  async function loadSlot(slot: "h1" | "m15" | "m5", file: File) {
+  async function loadSlot(slot: "h4" | "h1" | "m15" | "m5", file: File) {
     try {
       const data = await compressToDataUrl(file);
       setImages((prev) => ({ ...prev, [slot]: data }));
@@ -73,12 +74,12 @@ export function AnalyzerWorkspace() {
     setError(null);
     try {
       const data = await fetchAsDataUrl(sample.file);
-      setImages({ h1: data, m15: null, m5: null });
+      setImages({ h4: null, h1: data, m15: null, m5: null });
       setMarket(sample.market);
       setSession(sample.session);
       setThesis(sample.thesis);
       setActive(null);
-      toast.message("Exemple chargé sur H1 — ajoute M15 et M5 du même actif pour le multi-TF");
+      toast.message("Exemple chargé sur H1 — ajoute H4, M15 et M5 du même actif pour le multi-TF");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Exemple indisponible");
     } finally {
@@ -87,13 +88,13 @@ export function AnalyzerWorkspace() {
   }
 
   async function run() {
-    const count = [images.h1, images.m15, images.m5].filter(Boolean).length;
+    const count = [images.h4, images.h1, images.m15, images.m5].filter(Boolean).length;
     if (count === 0) {
-      toast.error("Ajoutez au moins une capture (idéal : H1 + M15 + M5)");
+      toast.error("Ajoutez au moins une capture (idéal : H4 + H1 + M15 + M5)");
       return;
     }
     if (count < 3) {
-      toast.message("Conseil : 3 TF (H1, M15, M5) améliorent le limit et le SL 1 ATR");
+      toast.message("Conseil : H4 + H1 + M15 + M5 améliorent biais, limit et SL ~1 ATR");
     }
     const input: AnalysisInput = {
       market,
@@ -107,11 +108,13 @@ export function AnalyzerWorkspace() {
       const res = await analyzeChart({
         data: {
           images: {
+            h4: images.h4 ?? undefined,
             h1: images.h1 ?? undefined,
             m15: images.m15 ?? undefined,
             m5: images.m5 ?? undefined,
           },
-          imageDataUrl: images.h1 ?? images.m15 ?? images.m5 ?? undefined,
+          imageDataUrl:
+            images.h1 ?? images.m15 ?? images.h4 ?? images.m5 ?? undefined,
           input,
         },
       });
@@ -120,7 +123,7 @@ export function AnalyzerWorkspace() {
         toast.error(res.error);
         return;
       }
-      const primary = images.m15 ?? images.h1 ?? images.m5!;
+      const primary = images.m15 ?? images.h1 ?? images.h4 ?? images.m5!;
       const thumb = await makeThumbnail(primary);
       addAnalysis({
         id: uid(),
@@ -160,7 +163,7 @@ export function AnalyzerWorkspace() {
             Capture, thèse, plan
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-            Envoie le même actif en H1, M15 et M5 pour un limit plus fiable et un
+            Envoie le même actif en H4, H1, M15 et M5 pour un biais plus fiable et un
             stop calé sur ~1 ATR. Une seule image reste possible, le multi-TF est
             recommandé.
           </p>
@@ -172,15 +175,17 @@ export function AnalyzerWorkspace() {
           <div className="rounded-2xl border border-border/70 bg-card/50 px-4 py-3 text-sm text-muted-foreground">
             <p className="font-medium text-foreground">Multi-timeframe (recommandé)</p>
             <p className="mt-1 text-xs leading-relaxed">
-              Même actif sur <strong className="text-foreground/90">H1</strong> (biais),{" "}
-              <strong className="text-foreground/90">M15</strong> (zone) et{" "}
-              <strong className="text-foreground/90">M5</strong> (limit précis). Le stop vise{" "}
-              <strong className="text-foreground/90">~1 ATR</strong> du TF d’exécution.
+              Même actif : <strong className="text-foreground/90">H4</strong> (contexte),{" "}
+              <strong className="text-foreground/90">H1</strong> (biais),{" "}
+              <strong className="text-foreground/90">M15</strong> (zone),{" "}
+              <strong className="text-foreground/90">M5</strong> (limit). Stop ~{" "}
+              <strong className="text-foreground/90">1 ATR</strong> du TF d’exécution.
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {(
               [
+                { key: "h4" as const, title: "H4", hint: "Contexte majeur" },
                 { key: "h1" as const, title: "H1", hint: "Biais structurel" },
                 { key: "m15" as const, title: "M15", hint: "Zone d’entrée" },
                 { key: "m5" as const, title: "M5", hint: "Limit sniper" },
@@ -227,13 +232,14 @@ export function AnalyzerWorkspace() {
             })}
           </div>
           <div className="flex flex-wrap gap-2">
-            {[images.h1, images.m15, images.m5].some(Boolean) ? (
+            {[images.h4, images.h1, images.m15, images.m5].some(Boolean) ? (
               <>
                 <Button onClick={() => void run()} disabled={busy}>
                   {busy ? <Loader2 className="size-4 animate-spin" /> : null}
                   {busy
                     ? "Lecture multi-TF…"
-                    : [images.h1, images.m15, images.m5].filter(Boolean).length >= 3
+                    : [images.h4, images.h1, images.m15, images.m5].filter(Boolean)
+                          .length >= 3
                       ? "Obtenir le plan multi-TF"
                       : "Obtenir le plan"}
                 </Button>
@@ -241,7 +247,7 @@ export function AnalyzerWorkspace() {
                   variant="outline"
                   disabled={busy}
                   onClick={() => {
-                    setImages({ h1: null, m15: null, m5: null });
+                    setImages({ h4: null, h1: null, m15: null, m5: null });
                     setActive(null);
                   }}
                 >
@@ -252,7 +258,7 @@ export function AnalyzerWorkspace() {
           </div>
           {busy ? (
             <p className="text-sm text-accent shimmer-text">
-              Confluence H1 → M15 → M5, limit et SL ~1 ATR…
+              Confluence H4 → H1 → M15 → M5, limit et SL ~1 ATR…
             </p>
           ) : null}
           {error ? <p className="text-sm text-bear">{error}</p> : null}

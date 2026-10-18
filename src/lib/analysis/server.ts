@@ -70,8 +70,9 @@ Mappe ta structure 1–6 vers les champs JSON du message utilisateur (trend, rat
 type AnalyzePayload = {
   /** Rétrocompat : une seule image */
   imageDataUrl?: string;
-  /** Multi-TF recommandé : même symbole, H1 + M15 + M5 */
+  /** Multi-TF recommandé : même symbole, H4 + H1 + M15 + M5 */
   images?: {
+    h4?: string;
     h1?: string;
     m15?: string;
     m5?: string;
@@ -322,11 +323,12 @@ function buildAnalyzePrompt(
     parts.push(
       `MULTI-TIMEFRAME activé. Images fournies : ${present.join(", ")}.`,
       "Ordre de lecture strict :",
-      "1) H1 = biais structurel (tendance, range, niveaux majeurs). Sans alignement H1, préfère direction=wait.",
-      "2) M15 = zone d'entrée et invalidation intermédiaire.",
-      "3) M5 = raffinement du limit sniper (retest précis).",
+      "1) H4 = contexte structurel majeur (tendance, range, niveaux Daily-like). Si H4 contre le setup, préfère direction=wait.",
+      "2) H1 = biais intermédiaire (structure, BOS/ChoCH).",
+      "3) M15 = zone d'entrée et invalidation intermédiaire.",
+      "4) M5 = raffinement du limit sniper (retest précis).",
       "timeframe du JSON = TF d'exécution principal (souvent M15 ou M5).",
-      "sessionNotes : résume en 2–4 phrases la confluence H1→M15→M5.",
+      "sessionNotes : résume en 2–4 phrases la confluence H4→H1→M15→M5.",
     );
   } else {
     parts.push(
@@ -368,6 +370,7 @@ export const analyzeChart = createServerFn({ method: "POST" })
     const pushImg = (label: string, url?: string) => {
       if (url?.startsWith("data:image/")) ordered.push({ label, url });
     };
+    pushImg("H4", data.images?.h4);
     pushImg("H1", data.images?.h1);
     pushImg("M15", data.images?.m15);
     pushImg("M5", data.images?.m5);
@@ -377,7 +380,7 @@ export const analyzeChart = createServerFn({ method: "POST" })
     if (ordered.length === 0) {
       return {
         ok: false as const,
-        error: "Ajoutez au moins une capture (idéalement H1 + M15 + M5).",
+        error: "Ajoutez au moins une capture (idéalement H4 + H1 + M15 + M5).",
       };
     }
     for (const img of ordered) {
@@ -398,6 +401,7 @@ export const analyzeChart = createServerFn({ method: "POST" })
     }
 
     const frames = [
+      { label: "H4", present: ordered.some((o) => o.label === "H4") },
       { label: "H1", present: ordered.some((o) => o.label === "H1") },
       { label: "M15", present: ordered.some((o) => o.label === "M15") },
       { label: "M5", present: ordered.some((o) => o.label === "M5") },
@@ -407,7 +411,7 @@ export const analyzeChart = createServerFn({ method: "POST" })
       },
     ];
     const prompt = buildAnalyzePrompt(data.input, frames);
-    const timeoutMs = ordered.length > 1 ? 120_000 : 90_000;
+    const timeoutMs = ordered.length >= 3 ? 150_000 : ordered.length > 1 ? 120_000 : 90_000;
     let result: LlmResult;
 
     if (hasAnthropic()) {
