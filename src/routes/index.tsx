@@ -180,20 +180,17 @@ function Home() {
               <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2">
                 <span className="size-2 rounded-full bg-bull animate-pulse" />
                 <span className="text-[11px] font-medium tracking-wide text-muted-foreground">
-                  Présentation · 20 s
+                  Présentation · ~50 s · voix off
                 </span>
               </div>
               <video
                 className="aspect-video w-full bg-black object-cover"
                 src="/demo/ngntrade-demo.mp4"
                 poster="/demo/poster.jpg"
-                autoPlay
-                muted
-                loop
-                playsInline
                 controls
+                playsInline
                 preload="metadata"
-                aria-label="Présentation Ngntrade"
+                aria-label="Présentation Ngntrade avec voix off"
               />
             </div>
             <div className="relative rounded-[1.35rem] border border-white/10 bg-card/80 p-1.5 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.8)] backdrop-blur-xl">
@@ -223,7 +220,7 @@ function Home() {
               Comment Ngntrade fonctionne
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Multi-TF → analyse IA → limit sniper → playbook premium
+              De A à Z : déposer les captures → plan sniper → marchés & premium
             </p>
           </div>
           <div className="overflow-hidden rounded-2xl border border-white/10 shadow-[0_40px_100px_-40px_rgba(0,0,0,0.9)]">
