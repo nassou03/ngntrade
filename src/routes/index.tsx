@@ -180,7 +180,7 @@ function Home() {
               <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2">
                 <span className="size-2 rounded-full bg-bull animate-pulse" />
                 <span className="text-[11px] font-medium tracking-wide text-muted-foreground">
-                  Présentation · ~50 s · voix off
+                  Présentation · ~1 min · voix off
                 </span>
               </div>
               <video
