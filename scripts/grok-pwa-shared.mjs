@@ -6,7 +6,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-export const DEFAULT_APP_NAME = "Grok App";
+export const DEFAULT_APP_NAME = "Ngntrade";
 export const OG_SERVICE_URL_DEFAULT = "https://og.grok.me";
 export const OG_SITE_REL_PATH = "src/lib/og/site.json";
 
@@ -65,6 +65,23 @@ export function appNameFromHost(hostHeader) {
     .trim()
     .split(":")[0]
     .toLowerCase();
+  // Production Ngntrade on Vercel
+  if (host === "ngntrade.vercel.app" || host.startsWith("ngntrade.")) {
+    return "Ngntrade";
+  }
+  if (host.endsWith(".vercel.app")) {
+    const slug = host.split(".")[0] ?? "";
+    if (slug && slug !== "www" && /^[a-z0-9-]{1,63}$/.test(slug)) {
+      return (
+        slug
+          .split("-")
+          .filter(Boolean)
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(" ") || DEFAULT_APP_NAME
+      );
+    }
+    return DEFAULT_APP_NAME;
+  }
   if (!host.endsWith(".grok.me")) {
     return DEFAULT_APP_NAME;
   }
@@ -163,16 +180,29 @@ export function renderWebManifest(hostHeader) {
     {
       name,
       short_name: name,
+      description: "Analyse technique multi-TF, limit sniper et playbook trading",
       id: "/",
       start_url: "/",
       scope: "/",
       display: "standalone",
-      background_color: "#000000",
-      theme_color: "#000000",
+      background_color: "#08090c",
+      theme_color: "#08090c",
       icons: [
+        {
+          src: "/icon-180.png",
+          sizes: "180x180",
+          type: "image/png",
+          purpose: "any",
+        },
         {
           src: "/__grok/icon-180.png",
           sizes: "180x180",
+          type: "image/png",
+          purpose: "any",
+        },
+        {
+          src: "/favicon-64.png",
+          sizes: "64x64",
           type: "image/png",
         },
       ],
