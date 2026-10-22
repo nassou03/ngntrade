@@ -175,12 +175,32 @@ function Home() {
 
           <div className="animate-fade-up relative space-y-4 [animation-delay:90ms]">
             <div className="pointer-events-none absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-accent/20 via-transparent to-bull/10 blur-2xl" />
-            <div className="relative rounded-[1.35rem] border border-white/10 bg-card/80 p-1.5 shadow-[0_40px_100px_-40px_rgba(0,0,0,0.95)] backdrop-blur-xl">
+            {/* Vidéo de présentation — visible dès l'accueil */}
+            <div className="relative overflow-hidden rounded-[1.35rem] border border-white/10 bg-card/90 shadow-[0_40px_100px_-40px_rgba(0,0,0,0.95)] backdrop-blur-xl">
+              <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2">
+                <span className="size-2 rounded-full bg-bull animate-pulse" />
+                <span className="text-[11px] font-medium tracking-wide text-muted-foreground">
+                  Présentation · 20 s
+                </span>
+              </div>
+              <video
+                className="aspect-video w-full bg-black object-cover"
+                src="/demo/ngntrade-demo.mp4"
+                poster="/demo/poster.jpg"
+                autoPlay
+                muted
+                loop
+                playsInline
+                controls
+                preload="metadata"
+                aria-label="Présentation Ngntrade"
+              />
+            </div>
+            <div className="relative rounded-[1.35rem] border border-white/10 bg-card/80 p-1.5 shadow-[0_24px_60px_-40px_rgba(0,0,0,0.8)] backdrop-blur-xl">
               <div className="rounded-[1.1rem] border border-dashed border-white/10 bg-elevated/20 p-4">
                 <Dropzone onFile={onFile} />
               </div>
             </div>
-            <MockPlan />
             <p className="text-center text-[11px] tracking-wide text-subtle">
               TradingView · MetaTrader · cTrader — axes visibles
             </p>
@@ -190,6 +210,32 @@ function Home() {
         <div className="relative border-t border-white/5 bg-black/20 backdrop-blur-md">
           <div className="mx-auto max-w-6xl px-4 py-3.5">
             <MarketTicker />
+          </div>
+        </div>
+      </section>
+
+      {/* Comment ça marche — vidéo full width */}
+      <section className="border-b border-border/40 bg-black/25">
+        <div className="mx-auto max-w-4xl px-4 py-12 md:py-16">
+          <div className="mb-6 text-center">
+            <p className="section-kicker">Démo</p>
+            <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight md:text-3xl">
+              Comment Ngntrade fonctionne
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Multi-TF → analyse IA → limit sniper → playbook premium
+            </p>
+          </div>
+          <div className="overflow-hidden rounded-2xl border border-white/10 shadow-[0_40px_100px_-40px_rgba(0,0,0,0.9)]">
+            <video
+              className="aspect-video w-full bg-black object-cover"
+              src="/demo/ngntrade-demo.mp4"
+              poster="/demo/poster.jpg"
+              controls
+              playsInline
+              preload="metadata"
+              aria-label="Démo complète Ngntrade"
+            />
           </div>
         </div>
       </section>
