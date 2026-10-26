@@ -4,6 +4,8 @@ import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { AppShell } from "@/components/layout/app-shell";
 import { TooltipProvider } from "@/components/ui/misc";
 import { Toaster } from "sonner";
+import { Analytics } from "@/components/analytics";
+import { GA_ID } from "@/lib/analytics";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "Ngntrade";
@@ -70,7 +72,19 @@ export const Route = createRootRoute({
         href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Syne:wght@500;600;700&display=swap",
       },
       { rel: "manifest", href: "/__grok/manifest.webmanifest" },
-      
+    ],
+    scripts: [
+      {
+        children: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+window.gtag = gtag;
+gtag('js', new Date());
+gtag('config', '${GA_ID}');`,
+      },
+      {
+        async: true,
+        src: `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`,
+      },
     ],
   }),
   component: RootDocument,
@@ -84,6 +98,7 @@ function RootDocument() {
       </head>
       <body>
         <PreviewHostBridge />
+        <Analytics />
         <AuthProvider>
           <TooltipProvider>
             <AppShell>
