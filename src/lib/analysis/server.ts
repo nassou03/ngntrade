@@ -1,6 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { ChartAnalysisSchema, ANALYSIS_JSON_SCHEMA } from "./schema";
+import { checkPlan } from "./plan-check";
 import type { AnalysisInput, ChartAnalysis, CopilotTone } from "./types";
+
+const TOOL_NAME = "submit_chart_analysis";
+/** Vercel plafonne le corps d'une requête à ~4,5 Mo : budget total des images. */
+const MAX_TOTAL_IMAGE_CHARS = 4_000_000;
 
 /** xAI model (si XAI_API_KEY) */
 const XAI_MODEL = process.env.XAI_MODEL?.trim() || "grok-4.5";
@@ -63,9 +68,14 @@ const CHART_ANALYSIS_SYSTEM = `Tu es un trader professionnel expert en analyse t
 - Langage accessible mais précis (termes techniques SMC ok, avec justification courte si besoin)
 - Honnête : mieux vaut dire « pas de trade » que proposer un mauvais setup
 
+### Rigueur de lecture :
+- Lis d'abord l'axe des prix et l'axe du temps : symbole, timeframe, échelle, indicateurs affichés. Cite uniquement ce que tu vois.
+- Chaque prix du plan doit être cohérent avec l'échelle de l'axe. Un stop doit être du bon côté de l'entrée, les cibles du bon côté aussi.
+- Une réponse « wait » argumentée vaut mieux qu'un setup forcé. Si direction=wait, renseigne noTradeReason et ce qui déclencherait un setup.
+- Donne toujours un scénario alternatif : ce qui se passe si le principal échoue.
+
 ### Format de sortie technique (obligatoire pour cette application) :
-Réponds UNIQUEMENT avec un objet JSON valide (aucun markdown, aucun texte hors JSON).
-Mappe ta structure 1–6 vers les champs JSON du message utilisateur (trend, rationale, risks, setup.sniperEntry, setup.sniperReason, setup.stopLoss, setup.targets, levels, invalidation, score, confidence, sessionNotes, patterns, imageQuality, etc.).`;
+Rends ton analyse en appelant l'outil submit_chart_analysis, sans aucun autre texte. Tous les textes sont en français.`;
 
 type AnalyzePayload = {
   /** Rétrocompat : une seule image */
@@ -180,70 +190,89 @@ async function callAnthropic(opts: {
   system?: string;
   messages: unknown[];
   maxTokens: number;
-  temperature?: number;
   timeoutMs?: number;
-}): Promise<LlmResult> {
+  /** Force une sortie structurée via tool use. */
+  tool?: { name: string; description: string; input_schema: unknown };
+}): Promise<LlmResult & { toolInput?: unknown }> {
   const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
   if (!apiKey) {
     return { ok: false, error: "ANTHROPIC_API_KEY manquante" };
   }
+  const retryable = (status?: number) =>
+    status === 429 || status === 500 || status === 502 || status === 503 || status === 529;
 
-  const controller = new AbortController();
-  const timer = setTimeout(
-    () => controller.abort(),
-    opts.timeoutMs ?? 90_000,
-  );
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
-        max_tokens: opts.maxTokens,
-        // temperature retiré : déprécié sur Claude 5.x / Sonnet 5.5
-        ...(opts.system ? { system: opts.system } : {}),
-        messages: opts.messages,
-      }),
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      let detail = "";
-      try {
-        const errJson = (await res.json()) as { error?: { message?: string } };
-        detail = errJson.error?.message ? `: ${errJson.error.message}` : "";
-      } catch {
-        /* ignore */
+  let last: LlmResult = { ok: false, error: "Connexion Anthropic impossible" };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 900 * 2 ** (attempt - 1)));
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 90_000);
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: ANTHROPIC_MODEL,
+          max_tokens: opts.maxTokens,
+          // temperature retiré : déprécié sur Claude 5.x / Sonnet 5.5
+          ...(opts.system
+            ? {
+                system: [
+                  { type: "text", text: opts.system, cache_control: { type: "ephemeral" } },
+                ],
+              }
+            : {}),
+          ...(opts.tool
+            ? {
+                tools: [opts.tool],
+                tool_choice: { type: "tool", name: opts.tool.name },
+              }
+            : {}),
+          messages: opts.messages,
+        }),
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        let detail = "";
+        try {
+          const errJson = (await res.json()) as { error?: { message?: string } };
+          detail = errJson.error?.message ? `: ${errJson.error.message}` : "";
+        } catch {
+          /* ignore */
+        }
+        last = {
+          ok: false,
+          error: `Anthropic API error ${res.status}${detail}`,
+          status: res.status,
+        };
+        if (retryable(res.status)) continue;
+        return last;
       }
-      return {
-        ok: false,
-        error: `Anthropic API error ${res.status}${detail}`,
-        status: res.status,
+      const json = (await res.json()) as {
+        content?: { type: string; text?: string; input?: unknown }[];
       };
+      const toolBlock = json.content?.find((c) => c.type === "tool_use");
+      const text =
+        json.content
+          ?.filter((c) => c.type === "text")
+          .map((c) => c.text ?? "")
+          .join("\n") ?? "";
+      return { ok: true, text, provider: "anthropic", toolInput: toolBlock?.input };
+    } catch (err) {
+      const aborted = err instanceof Error && err.name === "AbortError";
+      last = {
+        ok: false,
+        error: aborted ? "L’analyse a pris trop de temps" : "Connexion Anthropic impossible",
+      };
+      if (aborted) return last;
+    } finally {
+      clearTimeout(timer);
     }
-    const json = (await res.json()) as {
-      content?: { type: string; text?: string }[];
-    };
-    const text =
-      json.content
-        ?.filter((c) => c.type === "text")
-        .map((c) => c.text ?? "")
-        .join("\n") ?? "";
-    return { ok: true, text, provider: "anthropic" };
-  } catch (err) {
-    const aborted = err instanceof Error && err.name === "AbortError";
-    return {
-      ok: false,
-      error: aborted
-        ? "L’analyse a pris trop de temps"
-        : "Connexion Anthropic impossible",
-    };
-  } finally {
-    clearTimeout(timer);
   }
+  return last;
 }
 
 async function callXai(
@@ -299,68 +328,112 @@ async function callXai(
   }
 }
 
-function buildAnalyzePrompt(
-  input: AnalysisInput,
-  frames: { label: string; present: boolean }[],
-) {
-  const present = frames.filter((f) => f.present).map((f) => f.label);
+const STYLE_RULES = {
+  scalp: {
+    label: "Scalping",
+    roles: "M15 = contexte, M5 = exécution et zone d'entrée. H1/H4 si fournis = biais de fond.",
+    atr: "1× ATR du TF d'exécution (M5), entre 0,8 et 1,3 ATR",
+    tp: "TP1 ≈ 1R, TP2 ≈ 1,5–2R sur structure M15",
+  },
+  intraday: {
+    label: "Intraday",
+    roles:
+      "H4 = contexte majeur, H1 = biais et structure, M15 = zone et invalidation, M5 = raffinement du limit.",
+    atr: "1× ATR du TF d'exécution (M15), entre 0,8 et 1,3 ATR",
+    tp: "TP1 ≈ 1–1,5R sur la première structure, TP2/TP3 sur extensions H1 et niveaux majeurs",
+  },
+  swing: {
+    label: "Swing",
+    roles: "H4 = exécution, H1 = affinage de l'entrée. Daily visible sur H4 = contexte.",
+    atr: "1,5× ATR du TF d'exécution (H4), entre 1,2 et 2 ATR",
+    tp: "TP1 ≈ 1,5–2R, TP2/TP3 sur niveaux hebdo/journaliers visibles",
+  },
+} as const;
+
+const METHOD_RULES: Record<string, string> = {
+  auto: "Choisis la méthode la plus adaptée à ce qui est visible (structure, zones, indicateurs).",
+  smc: "Méthode Smart Money : BOS/ChoCH, liquidité (equal highs/lows), order blocks, FVG, premium/discount.",
+  "price-action": "Méthode price action : structure HH/HL, supports/résistances, chandeliers de rejet, retests.",
+  indicators:
+    "Méthode indicateurs : lis uniquement ceux affichés (moyennes mobiles, RSI, MACD, VWAP, Bollinger…) et dis lesquels manquent.",
+};
+
+/** Image sur laquelle l'overlay est calibré — même priorité que la miniature côté client. */
+function overlayLabelFor(labels: string[]) {
+  for (const l of ["M15", "H1", "H4", "M5", "CHART"]) if (labels.includes(l)) return l;
+  return labels[0];
+}
+
+function buildAnalyzePrompt(input: AnalysisInput, present: string[]) {
+  const style = STYLE_RULES[input.style ?? "intraday"];
   const multi = present.length > 1;
+  const overlayLabel = overlayLabelFor(present);
   const parts = [
-    "Tu es un analyste technique senior pour Ngntrade (multi-timeframe).",
-    "Lis UNIQUEMENT ce qui est visible sur les captures : bougies, axes, indicateurs, volumes, niveaux, ATR si affiché.",
-    "Ne fabule pas de prix contradictoires avec l’échelle. Si un champ est illisible, approxime prudemment et baisse confidence.",
-    "Rédige trend, rationale, risks, sessionNotes, invalidation et patterns en français, ton professionnel, concis.",
-    "Ce n’est pas un conseil financier : un plan à vérifier avant de risquer du capital.",
-    "score = qualité du setup 0-100. confidence = certitude de lecture des graphiques 0-100.",
-    "Réponds UNIQUEMENT avec un objet JSON valide.",
-    "Interdit : markdown, blocs code, commentaires, texte avant/après le JSON.",
-    "Les nombres (prix, scores) doivent être des number JSON, pas des strings.",
-    "setup.sniperEntry : UN seul prix d'entrée LIMIT chirurgical (buy limit ou sell limit selon direction).",
-    "setup.sniperReason : 1–2 phrases — confluence MTF + structure (FVG, OB, VWAP, equal highs/lows).",
-    "Si direction=wait : sniperEntry = prix idéal d'attente (limit), pas le prix marché actuel.",
+    "Tu es l'analyste technique de Ngntrade. Lis UNIQUEMENT ce qui est visible : bougies, axes, indicateurs, volumes, niveaux.",
+    "Ne fabule pas de prix contradictoires avec l'échelle. Si un champ est illisible, approxime prudemment, baisse confidence et liste le manque dans missing.",
+    "Textes en français, ton professionnel, concis. Ce n'est pas un conseil financier.",
+    "score = qualité du setup 0-100. confidence = certitude de lecture 0-100. Les nombres sont des number JSON.",
+    `Style du trader : ${style.label}. ${style.roles}`,
+    `Méthode : ${METHOD_RULES[input.method ?? "auto"]}`,
+    "setup.sniperEntry : UN seul prix limit chirurgical. setup.sniperReason : 1–2 phrases (confluence + structure).",
+    "Si direction=wait : sniperEntry = prix d'attente idéal, noTradeReason rempli, scénarios décrivant le déclencheur.",
   ];
   if (multi) {
     parts.push(
-      `MULTI-TIMEFRAME activé. Images fournies : ${present.join(", ")}.`,
-      "Ordre de lecture strict :",
-      "1) H4 = contexte structurel majeur (tendance, range, niveaux Daily-like). Si H4 contre le setup, préfère direction=wait.",
-      "2) H1 = biais intermédiaire (structure, BOS/ChoCH).",
-      "3) M15 = zone d'entrée et invalidation intermédiaire.",
-      "4) M5 = raffinement du limit sniper (retest précis).",
-      "timeframe du JSON = TF d'exécution principal (souvent M15 ou M5).",
-      "sessionNotes : résume en 2–4 phrases la confluence H4→H1→M15→M5.",
+      `MULTI-TIMEFRAME. Images fournies : ${present.join(", ")}. Lis de la plus haute à la plus basse unité de temps.`,
+      "Si le TF supérieur contredit clairement le setup, préfère direction=wait.",
+      "structure : une entrée par TF fourni (biais + note courte). sessionNotes : 2–4 phrases sur la confluence entre TF.",
     );
   } else {
-    parts.push(
-      "Une seule capture fournie. Analyse standard. timeframe = TF visible sur l'image.",
-    );
+    parts.push("Une seule capture : analyse standard. timeframe = TF visible. structure : une seule entrée.");
   }
   parts.push(
-    "STOP LOSS — règle ATR (prioritaire) :",
-    "1) SL = environ 1× ATR du TF d'exécution (M15 si dispo, sinon M5, sinon TF unique).",
-    "2) Si l'indicateur ATR est visible, utilise sa valeur lue sur le graphique.",
-    "3) Sinon estime ATR ≈ amplitude moyenne des bougies récentes (ou True Range moyen visible).",
-    "4) Place le SL au-delà d'une structure claire, à une distance ≈ 1 ATR depuis le sniper (pas plus serré que 0,8 ATR, pas plus large que 1,3 ATR sans raison structurelle).",
-    "5) Interdit : compresser le SL juste pour gonfler le R:R.",
-    "TAKE PROFITS :",
-    "1) TP1 ≈ 1R à 1,5R (premier niveau structure).",
-    "2) TP2 / TP3 = extensions H1 / niveaux majeurs visibles.",
-    "3) Aligne les TP sur supports/résistances listés.",
-    "imageQuality : qualité de lecture de l'ENSEMBLE des images (axes, TF, netteté).",
-    "Ne promets jamais un winrate ; score = qualité de lecture + confluence MTF.",
+    "STOP LOSS : " + style.atr + ". Si l'ATR est affiché, lis sa valeur ; sinon estime-le sur l'amplitude moyenne des bougies récentes et renseigne atr en unités de prix. Place le stop au-delà d'une structure claire. Interdit : resserrer le stop pour gonfler le R:R.",
+    `TAKE PROFITS : ${style.tp}. Aligne-les sur les niveaux listés. Renseigne riskReward = distance TP1 / distance stop.`,
+    "zones : jusqu'à 8 zones clés avec bornes low/high en prix (order_block, fvg, liquidity, support, resistance, supply, demand).",
+    "confluence : EXACTEMENT ces 9 id, dans cet ordre, status pass/fail/unknown + note de 1 phrase : " +
+      "htf_alignment (TF supérieur aligné avec la direction), structure_break (BOS/ChoCH confirmant), " +
+      "liquidity_sweep (liquidité balayée avant l'entrée), zone_retest (OB/FVG/niveau retesté), " +
+      "session_timing (session adaptée, compte tenu de la session déclarée), rr_min (R:R TP1 ≥ 1,5), " +
+      "atr_stop (stop dans la fourchette ATR), invalidation_clear (invalidation nette et visible), " +
+      "news_risk (pas d'annonce majeure ; unknown si non visible). Utilise unknown plutôt que d'inventer.",
+    "scenarios : 2 entrées — principal (déclencheur, cible, invalidation) puis alternatif (ce qui se passe si le principal échoue).",
+    `overlay : calibre l'axe des prix de l'image ${overlayLabel} (imageLabel="${overlayLabel}"). Choisis DEUX graduations de prix lisibles sur l'axe, éloignées verticalement (au moins 40 % de la hauteur). ` +
+      "y1/y2 = position verticale de chaque graduation, de 0 (haut de l'image) à 1 (bas de l'image) ; p1/p2 = prix lus. log=true seulement si l'échelle est logarithmique. " +
+      "reliable=false si l'axe est illisible, tronqué ou absent.",
+    "imageQuality : qualité de lecture de l'ENSEMBLE des images. Ne promets jamais un winrate.",
   );
-  if (input.market && input.market !== "auto") {
-    parts.push(`Marché déclaré par le trader : ${input.market}.`);
-  }
-  if (input.session && input.session !== "any") {
-    parts.push(`Session : ${input.session}.`);
-  }
+  if (input.market && input.market !== "auto") parts.push(`Marché déclaré : ${input.market}.`);
+  if (input.session && input.session !== "any") parts.push(`Session : ${input.session}.`);
   if (input.risk) parts.push(`Risque annoncé : ${input.risk}.`);
-  if (input.thesis) parts.push(`Thèse du trader : ${input.thesis}`);
-  parts.push(
-    `Schéma JSON attendu (clés obligatoires) : ${JSON.stringify(ANALYSIS_JSON_SCHEMA)}`,
-  );
+  if (input.thesis) parts.push(`Thèse du trader (à challenger, pas à confirmer par défaut) : ${input.thesis}`);
   return parts.join("\n");
+}
+
+function finalize(raw: unknown): ChartAnalysis | null {
+  const parsed = ChartAnalysisSchema.safeParse(raw);
+  const base = parsed.success
+    ? parsed.data
+    : ChartAnalysisSchema.parse({
+        ...(typeof raw === "object" && raw ? raw : {}),
+        setup:
+          typeof raw === "object" && raw && "setup" in raw
+            ? (raw as { setup: unknown }).setup
+            : {},
+      });
+  const reconciled = reconcileImageQuality(base) as ChartAnalysis;
+  const check = checkPlan(reconciled);
+  return {
+    ...reconciled,
+    setup: {
+      ...reconciled.setup,
+      riskReward: check.riskReward || reconciled.setup.riskReward,
+    },
+    rrs: check.rrs,
+    warnings: check.warnings,
+    confluenceScore: check.confluenceScore,
+    grade: check.grade,
+  };
 }
 
 export const analyzeChart = createServerFn({ method: "POST" })
@@ -383,15 +456,12 @@ export const analyzeChart = createServerFn({ method: "POST" })
         error: "Ajoutez au moins une capture (idéalement H4 + H1 + M15 + M5).",
       };
     }
-    for (const img of ordered) {
-      if (img.url.length > 1_600_000) {
-        return {
-          ok: false as const,
-          error: `Image ${img.label} trop lourde — compressez ou recadrez.`,
-        };
-      }
+    if (ordered.reduce((n, o) => n + o.url.length, 0) > MAX_TOTAL_IMAGE_CHARS) {
+      return {
+        ok: false as const,
+        error: "Images trop lourdes au total — recadrez ou retirez une capture.",
+      };
     }
-
     if (!hasAnthropic() && !hasXai()) {
       return {
         ok: false as const,
@@ -400,112 +470,95 @@ export const analyzeChart = createServerFn({ method: "POST" })
       };
     }
 
-    const frames = [
-      { label: "H4", present: ordered.some((o) => o.label === "H4") },
-      { label: "H1", present: ordered.some((o) => o.label === "H1") },
-      { label: "M15", present: ordered.some((o) => o.label === "M15") },
-      { label: "M5", present: ordered.some((o) => o.label === "M5") },
-      {
-        label: "CHART",
-        present: ordered.some((o) => o.label === "CHART"),
-      },
-    ];
-    const prompt = buildAnalyzePrompt(data.input, frames);
+    const labels = ordered.map((o) => o.label);
+    const prompt = buildAnalyzePrompt(data.input, labels);
     const timeoutMs = ordered.length >= 3 ? 150_000 : ordered.length > 1 ? 120_000 : 90_000;
-    let result: LlmResult;
 
-    if (hasAnthropic()) {
+    const runAnthropic = async () => {
       const content: unknown[] = [];
       for (const img of ordered) {
-        const parsed = parseDataUrl(img.url);
-        if (!parsed) {
-          return {
-            ok: false as const,
-            error: `Image ${img.label} invalide (data URL)`,
-          };
-        }
+        const parsedUrl = parseDataUrl(img.url);
+        if (!parsedUrl) return { ok: false as const, error: `Image ${img.label} invalide (data URL)` };
         content.push({ type: "text", text: `--- Graphique ${img.label} ---` });
         content.push({
           type: "image",
-          source: {
-            type: "base64",
-            media_type: parsed.mediaType,
-            data: parsed.base64,
-          },
+          source: { type: "base64", media_type: parsedUrl.mediaType, data: parsedUrl.base64 },
         });
       }
       content.push({ type: "text", text: prompt });
-      result = await callAnthropic({
+      return callAnthropic({
         system: CHART_ANALYSIS_SYSTEM,
-        maxTokens: 4096,
+        maxTokens: 6000,
         timeoutMs,
         messages: [{ role: "user", content }],
+        tool: {
+          name: TOOL_NAME,
+          description: "Soumet l'analyse structurée du ou des graphiques.",
+          input_schema: ANALYSIS_JSON_SCHEMA,
+        },
       });
-    } else {
+    };
+
+    const runXai = async (): Promise<LlmResult> => {
       const content: unknown[] = [];
       for (const img of ordered) {
         content.push({ type: "text", text: `--- Graphique ${img.label} ---` });
-        content.push({
-          type: "image_url",
-          image_url: { url: img.url, detail: "high" },
-        });
+        content.push({ type: "image_url", image_url: { url: img.url, detail: "high" } });
       }
-      content.push({ type: "text", text: prompt });
-      const messages = [{ role: "user", content }];
+      content.push({
+        type: "text",
+        text: `${prompt}\nSchéma JSON attendu : ${JSON.stringify(ANALYSIS_JSON_SCHEMA)}\nRéponds UNIQUEMENT avec un objet JSON valide.`,
+      });
       const base = {
         model: XAI_MODEL,
-        max_tokens: 2800,
+        max_tokens: 4000,
         temperature: 0.2,
-        messages,
+        messages: [{ role: "user", content }],
       };
-      result = await callXai(
-        {
-          ...base,
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: "chart_analysis",
-              strict: true,
-              schema: ANALYSIS_JSON_SCHEMA,
-            },
-          },
-        },
-        timeoutMs,
-      );
-      if (!result.ok && result.status && result.status >= 400) {
-        result = await callXai(
-          {
-            ...base,
-            response_format: { type: "json_object" },
-          },
-          timeoutMs,
-        );
-      }
+      let r = await callXai({ ...base, response_format: { type: "json_object" } }, timeoutMs);
+      if (!r.ok && r.status === 400) r = await callXai(base, timeoutMs);
+      return r;
+    };
+
+    let raw: unknown = null;
+    let lastError = "";
+    if (hasAnthropic()) {
+      const r = await runAnthropic();
+      if (r.ok) {
+        try {
+          raw = "toolInput" in r && r.toolInput ? r.toolInput : extractJson(r.text);
+        } catch {
+          lastError = "Réponse IA illisible";
+        }
+      } else lastError = r.error;
     }
-
-    if (!result.ok) return { ok: false as const, error: result.error };
-
+    if (!raw && hasXai()) {
+      const r = await runXai();
+      if (r.ok) {
+        try {
+          raw = extractJson(r.text);
+        } catch {
+          lastError = "Réponse IA illisible";
+        }
+      } else lastError = r.error;
+    }
+    if (!raw) {
+      return {
+        ok: false as const,
+        error: lastError || "L’IA a répondu, mais le plan est incomplet. Réessayez ou changez de capture.",
+      };
+    }
     try {
-      const raw = extractJson(result.text);
-      const parsed = ChartAnalysisSchema.safeParse(raw);
-      if (parsed.success) {
-        const analysis = reconcileImageQuality(parsed.data) as ChartAnalysis;
-        return { ok: true as const, analysis };
+      const analysis = finalize(raw);
+      if (!analysis) throw new Error("empty");
+      if (analysis.overlay && !labels.includes(analysis.overlay.imageLabel)) {
+        analysis.overlay = { ...analysis.overlay, imageLabel: overlayLabelFor(labels) };
       }
-      // Dernier recours : forcer les défauts du schéma (très tolérant)
-      const forced = ChartAnalysisSchema.parse({
-        ...(typeof raw === "object" && raw ? raw : {}),
-        setup:
-          typeof raw === "object" && raw && "setup" in raw
-            ? (raw as { setup: unknown }).setup
-            : {},
-      });
-      return { ok: true as const, analysis: reconcileImageQuality(forced) as ChartAnalysis };
+      return { ok: true as const, analysis };
     } catch {
       return {
         ok: false as const,
-        error:
-          "L’IA a répondu, mais le plan est incomplet. Réessayez ou changez de capture.",
+        error: "L’IA a répondu, mais le plan est incomplet. Réessayez ou changez de capture.",
       };
     }
   });

@@ -1,6 +1,8 @@
-const MAX_EDGE = 1280;
-const JPEG_QUALITY = 0.72;
-const MAX_DATA_URL_CHARS = 1_400_000;
+// Claude lit au mieux ~1568 px de côté : assez pour déchiffrer les graduations de l'axe.
+const MAX_EDGE = 1568;
+const START_QUALITY = 0.86;
+// 4 images × ~0,95 M caractères restent sous la limite de ~4,5 Mo d'une requête Vercel.
+const MAX_DATA_URL_CHARS = 950_000;
 
 function loadImage(src: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
@@ -13,31 +15,31 @@ function loadImage(src: string) {
 }
 
 export async function compressToDataUrl(source: Blob | string): Promise<string> {
-  const src =
-    typeof source === "string" ? source : await blobToDataUrl(source);
+  const src = typeof source === "string" ? source : await blobToDataUrl(source);
   const img = await loadImage(src);
-  const scale = Math.min(1, MAX_EDGE / Math.max(img.width, img.height));
-  const width = Math.max(1, Math.round(img.width * scale));
-  const height = Math.max(1, Math.round(img.height * scale));
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas indisponible");
-  ctx.drawImage(img, 0, 0, width, height);
-  let quality = JPEG_QUALITY;
-  let dataUrl = canvas.toDataURL("image/jpeg", quality);
-  while (dataUrl.length > MAX_DATA_URL_CHARS && quality > 0.4) {
-    quality -= 0.08;
-    dataUrl = canvas.toDataURL("image/jpeg", quality);
+  let edge = Math.min(MAX_EDGE, Math.max(img.width, img.height));
+  for (let pass = 0; pass < 5; pass++) {
+    const scale = Math.min(1, edge / Math.max(img.width, img.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(img.width * scale));
+    canvas.height = Math.max(1, Math.round(img.height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas indisponible");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    // On préfère réduire la qualité JPEG un peu avant de réduire la résolution : le texte de l'axe reste net.
+    for (let quality = START_QUALITY; quality >= 0.6; quality -= 0.08) {
+      const dataUrl = canvas.toDataURL("image/jpeg", quality);
+      if (dataUrl.length <= MAX_DATA_URL_CHARS) return dataUrl;
+    }
+    edge = Math.round(edge * 0.85);
   }
-  if (dataUrl.length > MAX_DATA_URL_CHARS) {
-    throw new Error("Image trop lourde — recadrez le graphique et réessayez.");
-  }
-  return dataUrl;
+  throw new Error("Image trop lourde — recadrez le graphique et réessayez.");
 }
 
-export async function makeThumbnail(dataUrl: string, size = 320) {
+export async function makeThumbnail(dataUrl: string, size = 640) {
   const img = await loadImage(dataUrl);
   const scale = size / Math.max(img.width, img.height);
   const canvas = document.createElement("canvas");
@@ -46,7 +48,7 @@ export async function makeThumbnail(dataUrl: string, size = 320) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return dataUrl;
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.6);
+  return canvas.toDataURL("image/jpeg", 0.72);
 }
 
 export function blobToDataUrl(blob: Blob) {

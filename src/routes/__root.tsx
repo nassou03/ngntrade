@@ -22,14 +22,14 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "Ngntrade lit vos graphiques de trading. Multi-timeframe H1 M15 M5, entrée sniper, stop ~1 ATR, calendrier économique. Forex, crypto, matières, indices. Outil éducatif.",
+          "Ngntrade lit vos graphiques de trading. Plan vérifié automatiquement : stop, R:R et confluence contrôlés, graphique annoté, multi-timeframe. Forex, crypto, matières, indices. Outil éducatif.",
       },
       {
         name: "keywords",
         content:
           "analyse graphique trading, forex, crypto, calendrier économique, plan de trade, MetaTrader, sniper entry, Ngntrade",
       },
-      { name: "theme-color", content: "#08090c" },
+      { name: "theme-color", content: "#0a1016" },
       { name: "robots", content: "index, follow" },
       // Fichier HTML aussi servi via middleware; meta en secours si fourni
       {
@@ -46,7 +46,7 @@ export const Route = createRootRoute({
       {
         property: "og:description",
         content:
-          "Déposez H1, M15, M5. Recevez biais, limit sniper, stop ~1 ATR et cibles. Forex · Crypto · Indices.",
+          "Déposez vos captures. Recevez un plan contrôlé (stop, R:R, confluence) et le graphique annoté. Forex, crypto, indices.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://ngntrade.vercel.app/" },
@@ -69,7 +69,7 @@ export const Route = createRootRoute({
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Syne:wght@500;600;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;600;700&display=swap",
       },
       { rel: "manifest", href: "/__grok/manifest.webmanifest" },
     ],

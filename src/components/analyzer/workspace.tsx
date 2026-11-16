@@ -9,8 +9,15 @@ import { Input, Label, Textarea } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { analyzeChart, getAiStatus } from "@/lib/analysis/server";
 import { useQuery } from "@tanstack/react-query";
-import type { AnalysisInput, Market, Session } from "@/lib/analysis/types";
-import { MARKET_LABELS, SESSION_LABELS } from "@/lib/analysis/types";
+import type { AnalysisInput, Market, Method, Session, TradingStyle } from "@/lib/analysis/types";
+import {
+  MARKET_LABELS,
+  METHOD_LABELS,
+  METHODS,
+  SESSION_LABELS,
+  STYLE_LABELS,
+  STYLES,
+} from "@/lib/analysis/types";
 import { fetchAsDataUrl, compressToDataUrl, makeThumbnail } from "@/lib/image";
 import { SAMPLE_CHARTS } from "@/lib/samples";
 import { useAppStore } from "@/lib/store";
@@ -41,6 +48,8 @@ export function AnalyzerWorkspace() {
   const [session, setSession] = useState<Session>(pendingInput?.session ?? "any");
   const [risk, setRisk] = useState(pendingInput?.risk ?? "0.5%");
   const [thesis, setThesis] = useState(pendingInput?.thesis ?? "");
+  const [style, setStyle] = useState<TradingStyle>("intraday");
+  const [method, setMethod] = useState<Method>("auto");
 
   const active = analyses.find((a) => a.id === activeId);
   const { data: aiStatus } = useQuery({
@@ -66,6 +75,28 @@ export function AnalyzerWorkspace() {
       toast.error(e instanceof Error ? e.message : "Image illisible");
     }
   }
+
+  // Ctrl/Cmd+V : colle une capture d'écran dans le premier emplacement libre.
+  useEffect(() => {
+    function onPaste(e: ClipboardEvent) {
+      const file = Array.from(e.clipboardData?.items ?? [])
+        .find((i) => i.type.startsWith("image/"))
+        ?.getAsFile();
+      if (!file) return;
+      const order = ["h4", "h1", "m15", "m5"] as const;
+      const slot = order.find((k) => !images[k]);
+      if (!slot) {
+        toast.message("Les 4 emplacements sont pleins — retirez une capture d'abord.");
+        return;
+      }
+      e.preventDefault();
+      void loadSlot(slot, file);
+      toast.success(`Capture collée dans ${slot.toUpperCase()}`);
+    }
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [images]);
 
   async function loadSample(id: string) {
     const sample = SAMPLE_CHARTS.find((s) => s.id === id);
@@ -97,6 +128,8 @@ export function AnalyzerWorkspace() {
       toast.message("Conseil : H4 + H1 + M15 + M5 améliorent biais, limit et SL ~1 ATR");
     }
     const input: AnalysisInput = {
+      style,
+      method,
       market,
       session,
       risk,
@@ -124,7 +157,7 @@ export function AnalyzerWorkspace() {
         return;
       }
       const primary = images.m15 ?? images.h1 ?? images.h4 ?? images.m5!;
-      const thumb = await makeThumbnail(primary);
+      const thumb = await makeThumbnail(primary, 720);
       addAnalysis({
         id: uid(),
         createdAt: new Date().toISOString(),
@@ -163,9 +196,8 @@ export function AnalyzerWorkspace() {
             Capture, thèse, plan
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-            Envoie le même actif en H4, H1, M15 et M5 pour un biais plus fiable et un
-            stop calé sur ~1 ATR. Une seule image reste possible, le multi-TF est
-            recommandé.
+            Déposez ou collez (Ctrl+V) vos captures du même actif. L’IA lit le graphique, puis l’application
+            vérifie le plan : stop du bon côté, R:R recalculé, confluence notée critère par critère.
           </p>
         </div>
       </div>
@@ -267,6 +299,26 @@ export function AnalyzerWorkspace() {
         <Card className="border-border/80 bg-card/90 shadow-sm">
           <CardContent className="space-y-4 p-5">
             <div className="space-y-1.5">
+              <Label>Style de trading</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {STYLES.map((st) => (
+                  <Chip key={st} active={style === st} onClick={() => setStyle(st)}>
+                    {STYLE_LABELS[st]}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Méthode</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {METHODS.map((m) => (
+                  <Chip key={m} active={method === m} onClick={() => setMethod(m)}>
+                    {METHOD_LABELS[m]}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
               <Label>Marché</Label>
               <div className="flex flex-wrap gap-1.5">
                 {MARKETS.map((m) => (
@@ -345,7 +397,7 @@ export function AnalyzerWorkspace() {
             <h2 className="font-display text-lg font-semibold">Plan reçu</h2>
             <Badge>{new Date(active.createdAt).toLocaleString("fr-FR")}</Badge>
           </div>
-          <ResultPanel analysis={active.result} analysisId={active.id} />
+          <ResultPanel analysis={active.result} analysisId={active.id} image={active.thumbnail} />
         </section>
       ) : null}
 

@@ -41,7 +41,17 @@ function CopilotPage() {
       `Direction ${r.setup.direction} entrée ${r.setup.entryMin}-${r.setup.entryMax} SL ${r.setup.stopLoss} TP ${r.setup.takeProfits.join("/")}`,
       r.rationale,
       `Invalidation: ${r.setup.invalidation}`,
-    ].join("\n");
+      r.grade ? `Note du setup: ${r.grade} (confluence ${r.confluenceScore ?? "?"}%)` : "",
+      r.confluence?.length
+        ? `Confluence: ${r.confluence.map((c) => `${c.label}=${c.status}`).join(", ")}`
+        : "",
+      r.scenarios?.length
+        ? `Scénarios: ${r.scenarios.map((x) => `${x.name}: ${x.trigger}`).join(" | ")}`
+        : "",
+      r.warnings?.length ? `Alertes: ${r.warnings.map((x) => x.text).join(" | ")}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
   }, [active]);
 
   async function send(text: string) {
