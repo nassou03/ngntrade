@@ -14,6 +14,18 @@ const ANTHROPIC_MODEL =
   process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5";
 
 /**
+ * Adresse de l'API au format Anthropic. Par défaut : Anthropic.
+ * Pour un service compatible, définissez ANTHROPIC_BASE_URL sur Vercel,
+ * par exemple https://api.apinex.bond (un « /v1 » final est accepté et retiré).
+ */
+const ANTHROPIC_BASE_URL = (
+  process.env.ANTHROPIC_BASE_URL?.trim() || "https://api.anthropic.com"
+)
+  .replace(/\/+$/, "")
+  .replace(/\/v1$/, "");
+const IS_CUSTOM_ANTHROPIC_HOST = ANTHROPIC_BASE_URL !== "https://api.anthropic.com";
+
+/**
  * System prompt Claude — analyse de captures graphiques.
  * La réponse applicative reste du JSON (schéma Ngntrade) pour l’UI existante.
  */
@@ -207,12 +219,14 @@ async function callAnthropic(opts: {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 90_000);
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch(`${ANTHROPIC_BASE_URL}/v1/messages`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-api-key": apiKey,
           "anthropic-version": "2023-06-01",
+          // Certains services compatibles attendent aussi l'en-tête Bearer.
+          ...(IS_CUSTOM_ANTHROPIC_HOST ? { Authorization: `Bearer ${apiKey}` } : {}),
         },
         body: JSON.stringify({
           model: ANTHROPIC_MODEL,
