@@ -213,6 +213,27 @@ async function callAnthropic(opts: {
   const retryable = (status?: number) =>
     status === 429 || status === 500 || status === 502 || status === 503 || status === 529;
 
+  // Si le service refuse le format « outil » (certains modèles gratuits), on repasse en JSON texte.
+  let useTool = Boolean(opts.tool);
+  const messagesFor = (): unknown[] => {
+    if (useTool || !opts.tool) return opts.messages;
+    const msgs = [...opts.messages] as { role: string; content: unknown }[];
+    const lastMsg = msgs[msgs.length - 1];
+    const extra = {
+      type: "text",
+      text:
+        "Ne fais aucun appel d'outil. Réponds UNIQUEMENT avec un objet JSON valide respectant ce schéma : " +
+        JSON.stringify(opts.tool.input_schema),
+    };
+    msgs[msgs.length - 1] = {
+      ...lastMsg,
+      content: Array.isArray(lastMsg.content)
+        ? [...lastMsg.content, extra]
+        : [{ type: "text", text: String(lastMsg.content) }, extra],
+    };
+    return msgs;
+  };
+
   let last: LlmResult = { ok: false, error: "Connexion Anthropic impossible" };
   for (let attempt = 0; attempt < 3; attempt++) {
     if (attempt > 0) await new Promise((r) => setTimeout(r, 900 * 2 ** (attempt - 1)));
@@ -239,13 +260,13 @@ async function callAnthropic(opts: {
                 ],
               }
             : {}),
-          ...(opts.tool
+          ...(useTool && opts.tool
             ? {
                 tools: [opts.tool],
                 tool_choice: { type: "tool", name: opts.tool.name },
               }
             : {}),
-          messages: opts.messages,
+          messages: messagesFor(),
         }),
         signal: controller.signal,
       });
@@ -262,6 +283,10 @@ async function callAnthropic(opts: {
           error: `Anthropic API error ${res.status}${detail}`,
           status: res.status,
         };
+        if (res.status === 400 && useTool) {
+          useTool = false;
+          continue;
+        }
         if (retryable(res.status)) continue;
         return last;
       }
