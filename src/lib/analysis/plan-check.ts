@@ -81,6 +81,17 @@ export function checkPlan(a: ChartAnalysis): {
         } else if (rrs.length && rrs[0] < 1.5) {
           w.push({ level: "info", text: `R:R vers TP1 de ${rrs[0].toFixed(2)} : sous 1,5R, visez la cible suivante pour valider.` });
         }
+        if (rrs.length && rrs[0] < 1.5) {
+          const tp1v = tps.filter((tp) => (planDir === "long" ? tp > entry : tp < entry))[0];
+          const need = (tp1v + 1.5 * sl) / 2.5;
+          const better = planDir === "long" ? need < entry : need > entry;
+          if (better) {
+            w.push({
+              level: "info",
+              text: `Pour atteindre 1,5R avec ce stop et ce TP1, l'entrée devrait être à ${Math.round(need * 100) / 100} ou ${planDir === "long" ? "plus bas" : "plus haut"}. Vérifiez si cela reste dans la zone d'entrée.`,
+            });
+          }
+        }
         if (!rrs.length) w.push({ level: "warn", text: "Aucune cible valide : définissez vos objectifs avant d'entrer." });
         if (rrs.length && rrs[0] > 6) {
           w.push({ level: "info", text: `R:R vers TP1 de ${rrs[0].toFixed(1)} : très élevé, souvent le signe d'un stop trop serré.` });
