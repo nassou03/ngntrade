@@ -476,6 +476,7 @@ function finalize(raw: unknown, execLabel: string): ChartAnalysis | null {
     warnings: check.warnings,
     confluenceScore: check.confluenceScore,
     confluence: check.confluence,
+    adjusted: check.adjusted,
     grade: check.grade,
   };
 }

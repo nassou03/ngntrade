@@ -120,6 +120,17 @@ export type ChartAnalysis = {
   warnings?: PlanWarning[];
   confluenceScore?: number;
   grade?: Grade;
+  /** Plan recalé par l'app quand celui de l'IA échoue aux contrôles */
+  adjusted?: AdjustedPlan;
+};
+
+export type AdjustedPlan = {
+  direction: "long" | "short";
+  entry: number;
+  stop: number;
+  takeProfits: number[];
+  rrs: number[];
+  notes: string[];
 };
 
 export type AnalysisInput = {

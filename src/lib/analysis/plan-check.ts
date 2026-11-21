@@ -1,6 +1,7 @@
 import type {
   ChartAnalysis,
   ConfluenceItem,
+  AdjustedPlan,
   Grade,
   OverlayAxis,
   PlanWarning,
@@ -40,6 +41,7 @@ export function checkPlan(a: ChartAnalysis): {
   confluenceScore: number | undefined;
   confluence: ConfluenceItem[] | undefined;
   grade: Grade;
+  adjusted: AdjustedPlan | undefined;
 } {
   const w: PlanWarning[] = [];
   const s = a.setup;
@@ -175,6 +177,12 @@ export function checkPlan(a: ChartAnalysis): {
   });
   const score = confluenceScore(confluence);
   const atrBad = atrK != null && (atrK < 0.7 || atrK > 1.6);
+  const tp1Far = (() => {
+    if (!a.atr || !rrs.length || !planDir) return false;
+    const t = s.takeProfits.filter((tp) => (planDir === "long" ? tp > entry : tp < entry))[0];
+    return t != null && Math.abs(t - entry) / a.atr > 3;
+  })();
+  const needsAdjust = !!planDir && !!a.atr && (w.some((x) => x.level === "error") || (rrs[0] ?? 0) < 1.5 || atrBad || tp1Far);
   const hasError = w.some((x) => x.level === "error");
   let grade: Grade = "C";
   if (dir === "wait") grade = "none";
@@ -188,5 +196,63 @@ export function checkPlan(a: ChartAnalysis): {
     confluenceScore: score,
     confluence,
     grade,
+    adjusted: needsAdjust ? buildAdjustedPlan(a, planDir, entry) : undefined,
   };
+}
+
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * Reconstruit un plan cohérent à partir de l'entrée de l'IA, des zones lues et de l'ATR :
+ * stop entre 0,8 et 1,5 ATR au-delà de la zone, TP1 sur le premier niveau réel à 1,5R minimum
+ * et 3 ATR maximum, TP2 sur le niveau suivant.
+ */
+function buildAdjustedPlan(
+  a: ChartAnalysis,
+  dir: "long" | "short",
+  entryIn: number,
+): AdjustedPlan | undefined {
+  const atr = a.atr ?? 0;
+  const s = a.setup;
+  const entry = entryIn || (s.entryMin + s.entryMax) / 2;
+  if (!atr || !entry) return undefined;
+  const long = dir === "long";
+  const notes: string[] = [];
+
+  // Stop : au-delà de la zone d'entrée (+0,3 ATR), borné à 0,8–1,5 ATR.
+  const edge = long
+    ? (s.entryMin > 0 ? Math.min(s.entryMin, entry) : entry)
+    : (s.entryMax > 0 ? Math.max(s.entryMax, entry) : entry);
+  const structural = Math.abs(entry - (long ? edge - 0.3 * atr : edge + 0.3 * atr));
+  const dist = Math.min(1.5 * atr, Math.max(0.8 * atr, structural));
+  const stop = long ? entry - dist : entry + dist;
+  const risk = dist;
+  if (s.stopLoss) notes.push(`Stop recalé à ${r2(stop)} (${(dist / atr).toFixed(2)} ATR) au lieu de ${s.stopLoss}.`);
+
+  // Niveaux candidats dans le sens du gain.
+  const raw: number[] = [
+    ...(s.takeProfits ?? []),
+    ...(a.support ?? []),
+    ...(a.resistance ?? []),
+    ...((a.zones ?? []).flatMap((z) => [z.low, z.high])),
+  ].filter((v) => Number.isFinite(v) && v > 0 && (long ? v > entry : v < entry));
+  raw.sort((x, y) => (long ? x - y : y - x));
+  const levels: number[] = [];
+  for (const v of raw) if (!levels.length || Math.abs(v - levels[levels.length - 1]) > 0.1 * atr) levels.push(v);
+
+  const d = (v: number) => Math.abs(v - entry);
+  let tp1 = levels.find((v) => d(v) >= 1.5 * risk && d(v) <= 3 * atr);
+  if (tp1 == null) {
+    tp1 = long ? entry + 1.5 * risk : entry - 1.5 * risk;
+    notes.push("Aucun niveau lu à 1,5R–3 ATR : TP1 est un repère calculé, à ajuster sur votre graphique.");
+  } else {
+    const before = levels.find((v) => d(v) < 1.5 * risk);
+    if (before != null) notes.push(`Obstacle possible avant TP1 : niveau ${r2(before)}.`);
+  }
+  const tp2 =
+    levels.find((v) => d(v) >= d(tp1!) + 0.4 * atr && d(v) <= 5 * atr) ??
+    (long ? entry + 2.5 * risk : entry - 2.5 * risk);
+  const tps = [r2(tp1), r2(tp2)];
+  const rrs = tps.map((t) => r2(Math.abs(t - entry) / risk));
+  return { direction: dir, entry: r2(entry), stop: r2(stop), takeProfits: tps, rrs, notes };
 }

@@ -273,6 +273,32 @@ export function ResultPanel({
             </CardContent>
           </Card>
 
+          {analysis.adjusted ? (
+            <Card className="border-accent/40">
+              <CardHeader>
+                <CardTitle className="text-base">Plan recalé par l'app</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Les niveaux de l'IA ne passaient pas les contrôles (R:R, ATR ou cibles). Voici une version
+                  recalculée sur vos zones et l'ATR, à vérifier sur votre graphique avant tout usage.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <PlanRow tone="accent" k={analysis.adjusted.direction === "long" ? "Entrée achat" : "Entrée vente"} v={formatPrice(analysis.adjusted.entry, d)} />
+                <PlanRow tone="bear" k="Stop loss" v={formatPrice(analysis.adjusted.stop, d)} />
+                {analysis.adjusted.takeProfits.map((tp, i) => (
+                  <PlanRow key={i} tone="bull" k={`Take profit ${i + 1}`} v={formatPrice(tp, d)} sub={`${analysis.adjusted!.rrs[i].toFixed(2)} R`} />
+                ))}
+                {analysis.adjusted.notes.length ? (
+                  <ul className="list-disc space-y-1 pl-5 pt-3 text-xs text-muted-foreground">
+                    {analysis.adjusted.notes.map((n, i) => (
+                      <li key={i}>{n}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
+
           {/* Scénarios */}
           {analysis.scenarios?.length ? (
             <Card>
