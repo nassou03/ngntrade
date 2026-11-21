@@ -63,6 +63,18 @@ function decimalsFor(symbol: string, price: number) {
   return 2;
 }
 
+const TREND_FR: Record<string, string> = {
+  bearish: "Tendance baissière",
+  bullish: "Tendance haussière",
+  neutral: "Marché sans direction claire",
+  sideways: "Marché en range",
+  ranging: "Marché en range",
+};
+function trendFr(t: string): string {
+  const k = t.trim().toLowerCase().replace(/[.!]/g, "");
+  return TREND_FR[k] ?? t;
+}
+
 export function ResultPanel({
   analysis,
   analysisId,
@@ -290,7 +302,7 @@ export function ResultPanel({
               <CardTitle className="text-base">Lecture du marché</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">{analysis.trend}</p>
+              <p className="text-sm text-muted-foreground">{trendFr(analysis.trend)}</p>
               {analysis.structure?.length ? (
                 <ul className="space-y-2">
                   {analysis.structure.map((t, i) => (

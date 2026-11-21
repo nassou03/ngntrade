@@ -51,6 +51,7 @@ export function AnnotatedChart({
       }
       lines.push({ key, label, price, y: Math.min(1, Math.max(0, y)), color });
     };
+    push("now", "Prix actuel", analysis.currentPrice, "#c9d3dc");
     if (s.direction !== "wait" || s.sniperEntry) {
       push("entry", s.direction === "wait" ? "Attente" : "Entrée", s.sniperEntry, COLORS.entry);
     }
@@ -208,7 +209,7 @@ export function AnnotatedChart({
           {calibrating
             ? `Cliquez sur un repère de l'axe des prix (${pts.length + 1}/2), puis saisissez son prix.`
             : axis?.reliable
-              ? "Positions déduites de l'axe des prix : indicatives. Lignes décalées ? Utilisez « Calibrer » (2 clics) ou « Ajuster »."
+              ? "Contrôle rapide : la ligne grise « Prix actuel » doit coïncider avec l'étiquette du prix sur l'axe. Sinon, cliquez sur « Calibrer » (2 clics)."
               : "Axe non lu automatiquement : cliquez sur « Calibrer » pour placer les niveaux avec 2 repères."}
           {outOfFrame ? ` ${outOfFrame} niveau(x) hors cadre.` : ""}
         </span>
