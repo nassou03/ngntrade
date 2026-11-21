@@ -38,6 +38,7 @@ export function checkPlan(a: ChartAnalysis): {
   rrs: number[];
   riskReward: number;
   confluenceScore: number | undefined;
+  confluence: ConfluenceItem[] | undefined;
   grade: Grade;
 } {
   const w: PlanWarning[] = [];
@@ -45,6 +46,7 @@ export function checkPlan(a: ChartAnalysis): {
   const dir = s.direction;
   const entry = s.sniperEntry || (s.entryMin + s.entryMax) / 2;
   let rrs: number[] = [];
+  let atrK: number | null = null;
   // En « wait », les prix décrivent le scénario surveillé : on les contrôle aussi.
   const planDir = dir !== "wait" ? dir : s.watchDirection;
 
@@ -79,10 +81,24 @@ export function checkPlan(a: ChartAnalysis): {
           w.push({ level: "info", text: `R:R vers TP1 de ${rrs[0].toFixed(2)} : sous 1,5R, visez la cible suivante pour valider.` });
         }
         if (!rrs.length) w.push({ level: "warn", text: "Aucune cible valide : définissez vos objectifs avant d'entrer." });
+        if (rrs.length && rrs[0] > 6) {
+          w.push({ level: "info", text: `R:R vers TP1 de ${rrs[0].toFixed(1)} : très élevé, souvent le signe d'un stop trop serré.` });
+        }
         if (a.atr && a.atr > 0) {
           const k = risk / a.atr;
-          if (k < 0.7) w.push({ level: "warn", text: `Stop très serré : ${k.toFixed(2)} ATR. Risque de sortie sur le bruit.` });
-          else if (k > 1.6) w.push({ level: "warn", text: `Stop large : ${k.toFixed(2)} ATR. Réduisez la taille de position.` });
+          atrK = k;
+          if (k < 0.7 || k > 1.6) {
+            const sugSl = planDir === "long" ? entry - a.atr : entry + a.atr;
+            const sugRr = rrs.length ? Math.round((Math.abs(tps.filter((tp) => (planDir === "long" ? tp > entry : tp < entry))[0] - entry) / a.atr) * 100) / 100 : 0;
+            w.push({
+              level: "warn",
+              text:
+                (k < 0.7
+                  ? `Stop très serré : ${k.toFixed(2)} ATR, risque de sortie sur le bruit.`
+                  : `Stop large : ${k.toFixed(2)} ATR, réduisez la taille de position.`) +
+                ` Repère à 1 ATR : ${Math.round(sugSl * 100) / 100}${sugRr ? ` (R:R vers TP1 ≈ ${sugRr.toFixed(2)})` : ""}.`,
+            });
+          }
         }
       }
       if (a.currentPrice > 0 && Math.abs(entry - a.currentPrice) / a.currentPrice > 0.03) {
@@ -104,11 +120,24 @@ export function checkPlan(a: ChartAnalysis): {
     w.push({ level: "info", text: "Axe des prix non calibrable : le graphique annoté n'est pas affiché." });
   }
 
-  const score = confluenceScore(a.confluence);
+  // Deux critères sont recalculés par l'app : ils écrasent l'avis de l'IA quand les chiffres existent.
+  const confluence = a.confluence?.map((c) => {
+    if (c.id === "rr_min" && rrs.length) {
+      const ok = rrs[0] >= 1.5;
+      return { ...c, status: ok ? ("pass" as const) : ("fail" as const), note: `R:R vers TP1 = ${rrs[0].toFixed(2)} (calculé par l'app).` };
+    }
+    if (c.id === "atr_stop" && atrK != null) {
+      const ok = atrK >= 0.7 && atrK <= 1.6;
+      return { ...c, status: ok ? ("pass" as const) : ("fail" as const), note: `Stop = ${atrK.toFixed(2)} ATR (calculé par l'app).` };
+    }
+    return c;
+  });
+  const score = confluenceScore(confluence);
+  const atrBad = atrK != null && (atrK < 0.7 || atrK > 1.6);
   const hasError = w.some((x) => x.level === "error");
   let grade: Grade = "C";
   if (dir === "wait") grade = "none";
-  else if (!hasError && (score ?? 0) >= 75 && (rrs[0] ?? 0) >= 1.5) grade = "A";
+  else if (!hasError && !atrBad && (score ?? 0) >= 75 && (rrs[0] ?? 0) >= 1.5) grade = "A";
   else if (!hasError && (score ?? 0) >= 55 && (rrs[0] ?? 0) >= 1) grade = "B";
 
   return {
@@ -116,6 +145,7 @@ export function checkPlan(a: ChartAnalysis): {
     rrs,
     riskReward: rrs[0] ?? 0,
     confluenceScore: score,
+    confluence,
     grade,
   };
 }

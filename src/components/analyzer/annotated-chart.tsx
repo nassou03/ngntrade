@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type MouseEvent } from "react";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { priceToY } from "@/lib/analysis/plan-check";
-import { ZONE_LABELS, type ChartAnalysis } from "@/lib/analysis/types";
+import { ZONE_LABELS, type ChartAnalysis, type OverlayAxis } from "@/lib/analysis/types";
 import { formatPrice } from "@/lib/utils";
 
 type Line = { key: string; label: string; price: number; y: number; color: string };
@@ -29,7 +29,11 @@ export function AnnotatedChart({
   // Décalage vertical manuel (en % de la hauteur) pour corriger une calibration approximative.
   const [dy, setDy] = useState(0);
   const off = dy / 100;
-  const axis = analysis.overlay?.axis;
+  // Calibration manuelle : 2 clics sur l'image, avec le prix lu sur l'axe à chaque point.
+  const [manual, setManual] = useState<OverlayAxis | null>(null);
+  const [pts, setPts] = useState<{ y: number; p: number }[]>([]);
+  const [calibrating, setCalibrating] = useState(false);
+  const axis = manual ?? analysis.overlay?.axis;
 
   const { lines, bands, outOfFrame } = useMemo(() => {
     const lines: Line[] = [];
@@ -77,7 +81,37 @@ export function AnnotatedChart({
     return { lines, bands, outOfFrame };
   }, [analysis, axis]);
 
-  if (!axis?.reliable || (lines.length === 0 && bands.length === 0)) return null;
+  function onPick(e: MouseEvent<HTMLDivElement>) {
+    if (!calibrating) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const y = (e.clientY - r.top) / r.height;
+    const raw = window.prompt(
+      pts.length === 0
+        ? "Point 1 : quel prix est lu sur l'axe à cet endroit ? (ex. 59050)"
+        : "Point 2 : quel prix est lu sur l'axe à cet endroit ? (choisissez un point éloigné du premier)",
+    );
+    const p = Number((raw ?? "").replace(/\s/g, "").replace(",", "."));
+    if (!raw || !Number.isFinite(p) || p <= 0) {
+      toast.error("Prix non valide, recommencez le clic.");
+      return;
+    }
+    const next = [...pts, { y, p }];
+    if (next.length < 2) {
+      setPts(next);
+      toast.message("Point 1 enregistré. Cliquez sur un second repère de l'axe.");
+      return;
+    }
+    if (Math.abs(next[0].y - next[1].y) < 0.1 || next[0].p === next[1].p) {
+      toast.error("Les deux points sont trop proches. Recommencez.");
+      setPts([]);
+      return;
+    }
+    setManual({ y1: next[0].y, p1: next[0].p, y2: next[1].y, p2: next[1].p, log: false, reliable: true });
+    setPts([]);
+    setCalibrating(false);
+    setDy(0);
+    toast.success("Calibration appliquée.");
+  }
 
   async function download() {
     try {
@@ -130,7 +164,10 @@ export function AnnotatedChart({
 
   return (
     <figure className="overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="relative">
+      <div
+        className={`relative ${calibrating ? "cursor-crosshair ring-2 ring-accent" : ""}`}
+        onClick={onPick}
+      >
         <img src={src} alt={`Graphique annoté ${analysis.symbol}`} className="block w-full" />
         {showZones
           ? bands.map((b) => (
@@ -168,10 +205,29 @@ export function AnnotatedChart({
       </div>
       <figcaption className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2.5 text-xs text-muted-foreground">
         <span>
-          Positions déduites de l'axe des prix par l'IA : indicatives. Si les lignes sont décalées, utilisez « Ajuster » (double-clic pour remettre à zéro).
+          {calibrating
+            ? `Cliquez sur un repère de l'axe des prix (${pts.length + 1}/2), puis saisissez son prix.`
+            : axis?.reliable
+              ? "Positions déduites de l'axe des prix : indicatives. Lignes décalées ? Utilisez « Calibrer » (2 clics) ou « Ajuster »."
+              : "Axe non lu automatiquement : cliquez sur « Calibrer » pour placer les niveaux avec 2 repères."}
           {outOfFrame ? ` ${outOfFrame} niveau(x) hors cadre.` : ""}
         </span>
         <span className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant={calibrating ? "default" : "secondary"}
+            onClick={() => {
+              setCalibrating((v) => !v);
+              setPts([]);
+            }}
+          >
+            {calibrating ? "Annuler" : "Calibrer"}
+          </Button>
+          {manual ? (
+            <Button size="sm" variant="ghost" onClick={() => setManual(null)}>
+              Auto
+            </Button>
+          ) : null}
           <label className="flex items-center gap-1.5" title="Décale tous les niveaux si l'alignement est imprécis">
             Ajuster
             <input
