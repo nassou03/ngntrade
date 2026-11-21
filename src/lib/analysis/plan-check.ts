@@ -254,9 +254,12 @@ function buildAdjustedPlan(
   if (tp1 == null) {
     tp1 = long ? entry + 1.5 * risk : entry - 1.5 * risk;
     notes.push("Aucun niveau lu à 1,5R–3 ATR : TP1 est un repère calculé, à ajuster sur votre graphique.");
-  } else {
-    const before = levels.find((v) => d(v) < 1.5 * risk);
-    if (before != null) notes.push(`Obstacle possible avant TP1 : niveau ${r2(before)}.`);
+  }
+  const before = levels.filter((v) => d(v) >= 0.25 * atr && d(v) < Math.min(1.5 * risk, d(tp1!))).slice(0, 3);
+  if (before.length) {
+    notes.push(
+      `Avant TP1, le prix doit franchir ${before.map(r2).join(", ")} : ce plan recalé est optimiste. Préférez attendre un meilleur point d'entrée.`,
+    );
   }
   const tp2 =
     levels.find((v) => d(v) >= d(tp1!) + 0.4 * atr && d(v) <= 5 * atr) ??
