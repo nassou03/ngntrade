@@ -145,10 +145,11 @@ export function AnnotatedChart({
         ctx.stroke();
         const text = `${l.label} ${formatPrice(l.price, decimals)}`;
         const w = ctx.measureText(text).width + fs;
+        const x0 = l.key === "now" ? c.width - w - 8 : 8;
         ctx.fillStyle = l.color;
-        ctx.fillRect(8, y - fs * 0.85, w, fs * 1.7);
+        ctx.fillRect(x0, y - fs * 0.85, w, fs * 1.7);
         ctx.fillStyle = "#0b1117";
-        ctx.fillText(text, 8 + fs / 2, y);
+        ctx.fillText(text, x0 + fs / 2, y);
       }
       ctx.setLineDash([]);
       ctx.fillStyle = "rgba(255,255,255,0.7)";
@@ -196,7 +197,7 @@ export function AnnotatedChart({
               }}
             />
             <span
-              className="absolute left-1.5 -translate-y-1/2 rounded-sm px-1.5 font-mono text-[10px] font-semibold leading-4 text-[#0b1117]"
+              className={`absolute -translate-y-1/2 rounded-sm px-1.5 ${l.key === "now" ? "right-1.5" : "left-1.5"} font-mono text-[10px] font-semibold leading-4 text-[#0b1117]`}
               style={{ background: l.color }}
             >
               {l.label} {formatPrice(l.price, decimals)}

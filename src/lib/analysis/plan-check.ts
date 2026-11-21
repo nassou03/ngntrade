@@ -165,6 +165,9 @@ export function checkPlan(a: ChartAnalysis): {
       const ok = atrK >= 0.7 && atrK <= 1.6;
       return { ...c, status: ok ? ("pass" as const) : ("fail" as const), note: `Stop = ${atrK.toFixed(2)} ATR (calculé par l'app).` };
     }
+    if (c.id === "invalidation_clear" && planDir && s.stopLoss && (s.invalidation ?? "").trim().length > 5 && c.status !== "pass") {
+      return { ...c, status: "pass" as const, note: `Invalidation définie : ${s.invalidation.trim()}` };
+    }
     if (c.id === "zone_retest" && pendingK != null && c.status === "pass") {
       return { ...c, status: "unknown" as const, note: `Entrée à ${pendingK.toFixed(1)} ATR du prix : le retest n'a pas encore eu lieu (vérifié par l'app).` };
     }
