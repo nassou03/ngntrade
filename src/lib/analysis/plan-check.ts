@@ -204,7 +204,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
  * Reconstruit un plan cohérent à partir de l'entrée de l'IA, des zones lues et de l'ATR :
- * stop entre 0,8 et 1,5 ATR au-delà de la zone, TP1 sur le premier niveau réel à 1,5R minimum
+ * stop de l'IA conservé s'il est entre 0,8 et 1,5 ATR (sinon recalé à 1–1,5 ATR), TP1 sur le premier niveau réel à 1,5R minimum
  * et 3 ATR maximum, TP2 sur le niveau suivant.
  */
 function buildAdjustedPlan(
@@ -219,15 +219,24 @@ function buildAdjustedPlan(
   const long = dir === "long";
   const notes: string[] = [];
 
-  // Stop : au-delà de la zone d'entrée (+0,3 ATR), borné à 0,8–1,5 ATR.
-  const edge = long
-    ? (s.entryMin > 0 ? Math.min(s.entryMin, entry) : entry)
-    : (s.entryMax > 0 ? Math.max(s.entryMax, entry) : entry);
-  const structural = Math.abs(entry - (long ? edge - 0.3 * atr : edge + 0.3 * atr));
-  const dist = Math.min(1.5 * atr, Math.max(0.8 * atr, structural));
-  const stop = long ? entry - dist : entry + dist;
-  const risk = dist;
-  if (s.stopLoss) notes.push(`Stop recalé à ${r2(stop)} (${(dist / atr).toFixed(2)} ATR) au lieu de ${s.stopLoss}.`);
+  // Stop : on garde celui de l'IA s'il est du bon côté et entre 0,8 et 1,5 ATR (jamais resserré pour gonfler le R:R).
+  const aiRisk = s.stopLoss ? (long ? entry - s.stopLoss : s.stopLoss - entry) : 0;
+  const aiStopOk = aiRisk > 0 && aiRisk >= 0.8 * atr && aiRisk <= 1.5 * atr;
+  let stop: number;
+  let risk: number;
+  if (aiStopOk) {
+    stop = s.stopLoss;
+    risk = aiRisk;
+  } else {
+    // Sinon : au-delà de la zone d'entrée (+0,3 ATR), borné à 1,0–1,5 ATR.
+    const edge = long
+      ? (s.entryMin > 0 ? Math.min(s.entryMin, entry) : entry)
+      : (s.entryMax > 0 ? Math.max(s.entryMax, entry) : entry);
+    const structural = Math.abs(entry - (long ? edge - 0.3 * atr : edge + 0.3 * atr));
+    risk = Math.min(1.5 * atr, Math.max(1.0 * atr, structural));
+    stop = long ? entry - risk : entry + risk;
+    if (s.stopLoss) notes.push(`Stop recalé à ${r2(stop)} (${(risk / atr).toFixed(2)} ATR) au lieu de ${s.stopLoss}.`);
+  }
 
   // Niveaux candidats dans le sens du gain.
   const raw: number[] = [
