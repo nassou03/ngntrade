@@ -2,6 +2,7 @@ import type {
   ChartAnalysis,
   ConfluenceItem,
   AdjustedPlan,
+  Verdict,
   Grade,
   OverlayAxis,
   PlanWarning,
@@ -42,6 +43,7 @@ export function checkPlan(a: ChartAnalysis): {
   confluence: ConfluenceItem[] | undefined;
   grade: Grade;
   adjusted: AdjustedPlan | undefined;
+  verdict: Verdict;
 } {
   const w: PlanWarning[] = [];
   const s = a.setup;
@@ -189,6 +191,18 @@ export function checkPlan(a: ChartAnalysis): {
   else if (!hasError && !atrBad && pendingK == null && (score ?? 0) >= 75 && (rrs[0] ?? 0) >= 1.5) grade = "A";
   else if (!hasError && (score ?? 0) >= 55 && (rrs[0] ?? 0) >= 1) grade = "B";
 
+  const verdict = buildVerdict({
+    dir,
+    planDir,
+    grade,
+    hasError,
+    score,
+    rrs,
+    atrK,
+    pendingK,
+    items: confluence ?? [],
+  });
+
   return {
     warnings: w,
     rrs,
@@ -196,6 +210,7 @@ export function checkPlan(a: ChartAnalysis): {
     confluenceScore: score,
     confluence,
     grade,
+    verdict,
     adjusted: needsAdjust ? buildAdjustedPlan(a, planDir, entry) : undefined,
   };
 }
@@ -272,4 +287,52 @@ function buildAdjustedPlan(
   const tps = [r2(tp1), r2(tp2)];
   const rrs = tps.map((t) => r2(Math.abs(t - entry) / risk));
   return { direction: dir, entry: r2(entry), stop: r2(stop), takeProfits: tps, rrs, notes };
+}
+
+const CONDITION_BY_ID: Record<string, string> = {
+  htf_alignment: "Attendre une cassure de structure dans le sens du H1/H4, ou renoncer à un trade contre-tendance.",
+  structure_break: "Attendre un BOS/ChoCH confirmé par une clôture sur le timeframe d'exécution.",
+  liquidity_sweep: "Attendre un balayage de liquidité (mèche au-delà d'un extrême récent) puis un retour dans la zone.",
+  zone_retest: "Attendre que le prix revienne dans la zone d'entrée et y montre un rejet (bougie de rejet sur M5).",
+  session_timing: "Privilégier la session de Londres ou de New York et vérifier l'heure sur le graphique.",
+  rr_min: "Obtenir au moins 1,5R : entrée plus favorable ou cible plus lointaine.",
+  atr_stop: "Placer le stop entre 0,8 et 1,5 ATR au-delà de l'invalidation.",
+  invalidation_clear: "Définir un niveau d'invalidation précis avant d'entrer.",
+  news_risk: "Vérifier le calendrier économique : pas d'annonce majeure dans l'heure.",
+};
+
+function buildVerdict(i: {
+  dir: string;
+  planDir: "long" | "short" | undefined;
+  grade: Grade;
+  hasError: boolean;
+  score: number | undefined;
+  rrs: number[];
+  atrK: number | null;
+  pendingK: number | null;
+  items: ConfluenceItem[];
+}): Verdict {
+  const reasons: string[] = [];
+  const htfFail = i.items.some((c) => c.id === "htf_alignment" && c.status === "fail");
+  const rr0 = i.rrs[0];
+  if (htfFail) reasons.push("Trade contre la tendance des unités supérieures (H4/H1).");
+  if (i.hasError) reasons.push("Niveaux incohérents dans le plan de l'IA (stop ou cible du mauvais côté).");
+  if (i.score != null && i.score < 45) reasons.push(`Confluence faible : ${i.score} %.`);
+  if (rr0 != null && rr0 < 1.5) reasons.push(`R:R vers TP1 de ${rr0.toFixed(2)} (minimum 1,5).`);
+  if (i.atrK != null && (i.atrK < 0.7 || i.atrK > 1.6)) reasons.push(`Stop à ${i.atrK.toFixed(2)} ATR (fourchette 0,8–1,5).`);
+  if (i.pendingK != null) reasons.push(`Entrée limit à ${i.pendingK.toFixed(1)} ATR du prix : pas encore déclenchée.`);
+
+  let decision: Verdict["decision"];
+  if (!i.planDir) decision = "wait";
+  else if (i.hasError || htfFail || (i.score != null && i.score < 45) || (rr0 != null && rr0 < 1)) decision = "avoid";
+  else if (i.dir === "wait") decision = "wait";
+  else decision = i.grade === "A" ? "go" : i.grade === "B" ? "caution" : "avoid";
+
+  const conditions: string[] = [];
+  for (const c of i.items) {
+    if (c.status === "pass") continue;
+    const t = CONDITION_BY_ID[c.id];
+    if (t && !conditions.includes(t)) conditions.push(t);
+  }
+  return { decision, reasons, conditions: conditions.slice(0, 5) };
 }

@@ -122,6 +122,13 @@ export type ChartAnalysis = {
   grade?: Grade;
   /** Plan recalé par l'app quand celui de l'IA échoue aux contrôles */
   adjusted?: AdjustedPlan;
+  verdict?: Verdict;
+};
+
+export type Verdict = {
+  decision: "go" | "caution" | "wait" | "avoid";
+  reasons: string[];
+  conditions: string[];
 };
 
 export type AdjustedPlan = {

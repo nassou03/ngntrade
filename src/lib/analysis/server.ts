@@ -428,6 +428,7 @@ function buildAnalyzePrompt(input: AnalysisInput, present: string[]) {
     parts.push("Une seule capture : analyse standard. timeframe = TF visible. structure : une seule entrée.");
   }
   parts.push(
+    "LANGUE : tout texte renvoyé (trend, patterns, notes, scénarios) doit être en français. Seuls BOS, ChoCH, FVG, order block, POC et ATR restent en anglais.",
     "STOP LOSS : " + style.atr + ". Si l'ATR est affiché, lis sa valeur ; sinon estime-le sur l'amplitude moyenne des bougies récentes et renseigne atr en unités de prix. Place le stop au-delà d'une structure claire. Interdit : resserrer le stop pour gonfler le R:R. Si la structure impose un stop à plus de 1,6 ATR de l'entrée, rapproche l'ENTRÉE de la zone (entrée plus proche du stop) ou mets direction=wait : ne propose pas un stop large.",
     "COHÉRENCE DU PLAN : vérifie avant de répondre que (distance entrée→TP1) / (distance entrée→stop) est au moins 1,5 et que TP1 est à 1 à 3 ATR de l'entrée, placé juste avant le premier obstacle réel (support, demande, plus bas récent). Si aucun plan ne respecte ces deux conditions, mets direction=wait, ne force pas des cibles trop proches.",
     `TAKE PROFITS : ${style.tp}. Aligne-les sur les niveaux listés. Renseigne riskReward = distance TP1 / distance stop.`,
@@ -477,6 +478,7 @@ function finalize(raw: unknown, execLabel: string): ChartAnalysis | null {
     confluenceScore: check.confluenceScore,
     confluence: check.confluence,
     adjusted: check.adjusted,
+    verdict: check.verdict,
     grade: check.grade,
   };
 }

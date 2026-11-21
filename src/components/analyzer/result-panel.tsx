@@ -217,6 +217,60 @@ export function ResultPanel({
 
       <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-4">
+          {analysis.verdict ? (
+            <Card
+              className={cn(
+                "border-2",
+                analysis.verdict.decision === "go" && "border-bull/50",
+                analysis.verdict.decision === "caution" && "border-accent/50",
+                analysis.verdict.decision === "wait" && "border-border",
+                analysis.verdict.decision === "avoid" && "border-bear/50",
+              )}
+            >
+              <CardHeader>
+                <CardTitle
+                  className={cn(
+                    "text-lg",
+                    analysis.verdict.decision === "go" && "text-bull",
+                    analysis.verdict.decision === "caution" && "text-accent",
+                    analysis.verdict.decision === "avoid" && "text-bear",
+                  )}
+                >
+                  {{
+                    go: "Plan exploitable",
+                    caution: "Exploitable avec prudence",
+                    wait: "Attendre la confirmation",
+                    avoid: "Ne pas trader maintenant",
+                  }[analysis.verdict.decision]}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                {analysis.verdict.reasons.length ? (
+                  <div>
+                    <p className="mb-1 text-xs font-medium text-muted-foreground">Pourquoi</p>
+                    <ul className="list-disc space-y-1 pl-5">
+                      {analysis.verdict.reasons.map((r, i) => (
+                        <li key={i}>{r}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {analysis.verdict.conditions.length ? (
+                  <div>
+                    <p className="mb-1 text-xs font-medium text-muted-foreground">
+                      Pour que le plan devienne valide
+                    </p>
+                    <ul className="list-disc space-y-1 pl-5">
+                      {analysis.verdict.conditions.map((r, i) => (
+                        <li key={i}>{r}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
+
           {/* Plan */}
           <Card>
             <CardHeader>
@@ -274,7 +328,13 @@ export function ResultPanel({
           </Card>
 
           {analysis.adjusted ? (
-            <Card className="border-accent/40">
+            analysis.verdict?.decision === "avoid" ? (
+              <details className="rounded-2xl border border-border bg-card/60 p-4">
+                <summary className="cursor-pointer text-sm font-medium text-muted-foreground">
+                  Plan recalé, à titre d'étude seulement (la décision est de ne pas trader)
+                </summary>
+                <div className="mt-3">
+                  <Card className="border-accent/40">
               <CardHeader>
                 <CardTitle className="text-base">Plan recalé par l'app</CardTitle>
                 <p className="text-sm text-muted-foreground">
@@ -297,6 +357,33 @@ export function ResultPanel({
                 ) : null}
               </CardContent>
             </Card>
+                </div>
+              </details>
+            ) : (
+              <Card className="border-accent/40">
+              <CardHeader>
+                <CardTitle className="text-base">Plan recalé par l'app</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Les niveaux de l'IA ne passaient pas les contrôles (R:R, ATR ou cibles). Voici une version
+                  recalculée sur vos zones et l'ATR, à vérifier sur votre graphique avant tout usage.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <PlanRow tone="accent" k={analysis.adjusted.direction === "long" ? "Entrée achat" : "Entrée vente"} v={formatPrice(analysis.adjusted.entry, d)} />
+                <PlanRow tone="bear" k="Stop loss" v={formatPrice(analysis.adjusted.stop, d)} />
+                {analysis.adjusted.takeProfits.map((tp, i) => (
+                  <PlanRow key={i} tone="bull" k={`Take profit ${i + 1}`} v={formatPrice(tp, d)} sub={`${analysis.adjusted!.rrs[i].toFixed(2)} R`} />
+                ))}
+                {analysis.adjusted.notes.length ? (
+                  <ul className="list-disc space-y-1 pl-5 pt-3 text-xs text-muted-foreground">
+                    {analysis.adjusted.notes.map((n, i) => (
+                      <li key={i}>{n}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </CardContent>
+            </Card>
+            )
           ) : null}
 
           {/* Scénarios */}
