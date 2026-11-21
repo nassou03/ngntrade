@@ -47,6 +47,7 @@ export function checkPlan(a: ChartAnalysis): {
   const entry = s.sniperEntry || (s.entryMin + s.entryMax) / 2;
   let rrs: number[] = [];
   let atrK: number | null = null;
+  let pendingK: number | null = null;
   // En « wait », les prix décrivent le scénario surveillé : on les contrôle aussi.
   const planDir = dir !== "wait" ? dir : s.watchDirection;
 
@@ -107,6 +108,17 @@ export function checkPlan(a: ChartAnalysis): {
           text: "L'entrée est à plus de 3 % du prix lu : vérifiez l'échelle de l'axe sur votre graphique.",
         });
       }
+      // Entrée limit encore loin du prix : l'ordre n'est pas déclenché, le « retest » n'a pas eu lieu.
+      if (dir !== "wait" && a.atr && a.atr > 0 && a.currentPrice > 0) {
+        const away = planDir === "short" ? entry - a.currentPrice : a.currentPrice - entry;
+        if (away > 0.5 * a.atr) {
+          pendingK = away / a.atr;
+          w.push({
+            level: "info",
+            text: `Entrée limit à ${pendingK.toFixed(1)} ATR du prix actuel : ordre en attente, pas encore déclenché. Ne le placez que si vous acceptez que le prix doive d'abord revenir sur la zone.`,
+          });
+        }
+      }
       if (s.entryMin && s.entryMax && (entry < Math.min(s.entryMin, s.entryMax) * 0.9999 || entry > Math.max(s.entryMin, s.entryMax) * 1.0001)) {
         w.push({ level: "info", text: "L'entrée sniper est hors de la zone d'entrée indiquée." });
       }
@@ -130,6 +142,9 @@ export function checkPlan(a: ChartAnalysis): {
       const ok = atrK >= 0.7 && atrK <= 1.6;
       return { ...c, status: ok ? ("pass" as const) : ("fail" as const), note: `Stop = ${atrK.toFixed(2)} ATR (calculé par l'app).` };
     }
+    if (c.id === "zone_retest" && pendingK != null && c.status === "pass") {
+      return { ...c, status: "unknown" as const, note: `Entrée à ${pendingK.toFixed(1)} ATR du prix : le retest n'a pas encore eu lieu (vérifié par l'app).` };
+    }
     return c;
   });
   const score = confluenceScore(confluence);
@@ -137,7 +152,7 @@ export function checkPlan(a: ChartAnalysis): {
   const hasError = w.some((x) => x.level === "error");
   let grade: Grade = "C";
   if (dir === "wait") grade = "none";
-  else if (!hasError && !atrBad && (score ?? 0) >= 75 && (rrs[0] ?? 0) >= 1.5) grade = "A";
+  else if (!hasError && !atrBad && pendingK == null && (score ?? 0) >= 75 && (rrs[0] ?? 0) >= 1.5) grade = "A";
   else if (!hasError && (score ?? 0) >= 55 && (rrs[0] ?? 0) >= 1) grade = "B";
 
   return {
