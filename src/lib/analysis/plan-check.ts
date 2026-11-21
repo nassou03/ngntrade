@@ -233,7 +233,12 @@ function buildAdjustedPlan(
       ? (s.entryMin > 0 ? Math.min(s.entryMin, entry) : entry)
       : (s.entryMax > 0 ? Math.max(s.entryMax, entry) : entry);
     const structural = Math.abs(entry - (long ? edge - 0.3 * atr : edge + 0.3 * atr));
-    risk = Math.min(1.5 * atr, Math.max(1.0 * atr, structural));
+    // Le stop doit aussi se situer au-delà du niveau d'invalidation écrit par l'IA, s'il est lisible.
+    const invNums = [...(s.invalidation ?? "").matchAll(/\d[\d\s]*(?:[.,]\d+)?/g)]
+      .map((m) => Number(m[0].replace(/\s/g, "").replace(",", ".")))
+      .filter((n) => Number.isFinite(n) && Math.abs(n - entry) / entry < 0.05 && (long ? n < entry : n > entry) && Math.abs(n - entry) >= 0.3 * atr);
+    const invDist = invNums.length ? Math.min(...invNums.map((n) => Math.abs(n - entry))) + 0.1 * atr : 0;
+    risk = Math.min(1.5 * atr, Math.max(1.0 * atr, structural, invDist));
     stop = long ? entry - risk : entry + risk;
     if (s.stopLoss) notes.push(`Stop recalé à ${r2(stop)} (${(risk / atr).toFixed(2)} ATR) au lieu de ${s.stopLoss}.`);
   }
@@ -246,8 +251,7 @@ function buildAdjustedPlan(
     ...((a.zones ?? []).flatMap((z) => [z.low, z.high])),
   ].filter((v) => Number.isFinite(v) && v > 0 && (long ? v > entry : v < entry));
   raw.sort((x, y) => (long ? x - y : y - x));
-  const levels: number[] = [];
-  for (const v of raw) if (!levels.length || Math.abs(v - levels[levels.length - 1]) > 0.1 * atr) levels.push(v);
+  const levels = raw;
 
   const d = (v: number) => Math.abs(v - entry);
   let tp1 = levels.find((v) => d(v) >= 1.5 * risk && d(v) <= 3 * atr);
@@ -255,7 +259,8 @@ function buildAdjustedPlan(
     tp1 = long ? entry + 1.5 * risk : entry - 1.5 * risk;
     notes.push("Aucun niveau lu à 1,5R–3 ATR : TP1 est un repère calculé, à ajuster sur votre graphique.");
   }
-  const before = levels.filter((v) => d(v) >= 0.25 * atr && d(v) < Math.min(1.5 * risk, d(tp1!))).slice(0, 3);
+  const before = levels.filter((v) => d(v) >= 0.25 * atr && d(v) < Math.min(1.5 * risk, d(tp1!))).filter((v, i, arr) => i === 0 || Math.abs(v - arr[i - 1]) > 0.1 * atr)
+    .slice(0, 3);
   if (before.length) {
     notes.push(
       `Avant TP1, le prix doit franchir ${before.map(r2).join(", ")} : ce plan recalé est optimiste. Préférez attendre un meilleur point d'entrée.`,
