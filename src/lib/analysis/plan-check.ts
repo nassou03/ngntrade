@@ -85,6 +85,18 @@ export function checkPlan(a: ChartAnalysis): {
         if (rrs.length && rrs[0] > 6) {
           w.push({ level: "info", text: `R:R vers TP1 de ${rrs[0].toFixed(1)} : très élevé, souvent le signe d'un stop trop serré.` });
         }
+        if (a.atr && a.atr > 0 && rrs.length) {
+          const tp1 = tps.filter((tp) => (planDir === "long" ? tp > entry : tp < entry))[0];
+          const d = Math.abs(tp1 - entry) / a.atr;
+          if (d > 3) {
+            const near = planDir === "long" ? entry + 2 * a.atr : entry - 2 * a.atr;
+            const nearRr = Math.round(((2 * a.atr) / risk) * 100) / 100;
+            w.push({
+              level: "info",
+              text: `TP1 à ${d.toFixed(1)} ATR de l'entrée : ambitieux sur ce timeframe. Repère à 2 ATR : ${Math.round(near * 100) / 100} (R:R ≈ ${nearRr.toFixed(2)}). Cherchez un support ou une résistance avant TP1.`,
+            });
+          }
+        }
         if (a.atr && a.atr > 0) {
           const k = risk / a.atr;
           atrK = k;
