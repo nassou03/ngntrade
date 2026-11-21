@@ -19,6 +19,7 @@ import {
   STYLES,
 } from "@/lib/analysis/types";
 import { fetchAsDataUrl, compressToDataUrl, makeThumbnail } from "@/lib/image";
+import { sessionImages } from "@/lib/session-images";
 import { SAMPLE_CHARTS } from "@/lib/samples";
 import { useAppStore } from "@/lib/store";
 import { cn, uid } from "@/lib/utils";
@@ -156,10 +157,21 @@ export function AnalyzerWorkspace() {
         toast.error(res.error);
         return;
       }
-      const primary = images.m15 ?? images.h1 ?? images.h4 ?? images.m5!;
+      // L'image sur laquelle l'IA a calibré l'axe des prix (sinon l'image principale).
+      const overlayKey = res.analysis.overlay?.imageLabel?.toLowerCase() as
+        | keyof typeof images
+        | undefined;
+      const primary =
+        (overlayKey ? images[overlayKey] : undefined) ??
+        images.m15 ??
+        images.h1 ??
+        images.h4 ??
+        images.m5!;
       const thumb = await makeThumbnail(primary, 720);
+      const id = uid();
+      sessionImages.set(id, primary);
       addAnalysis({
-        id: uid(),
+        id,
         createdAt: new Date().toISOString(),
         thumbnail: thumb,
         input,
@@ -397,7 +409,7 @@ export function AnalyzerWorkspace() {
             <h2 className="font-display text-lg font-semibold">Plan reçu</h2>
             <Badge>{new Date(active.createdAt).toLocaleString("fr-FR")}</Badge>
           </div>
-          <ResultPanel analysis={active.result} analysisId={active.id} image={active.thumbnail} />
+          <ResultPanel analysis={active.result} analysisId={active.id} image={sessionImages.get(active.id) ?? active.thumbnail} />
         </section>
       ) : null}
 

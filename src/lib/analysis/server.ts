@@ -415,7 +415,8 @@ function buildAnalyzePrompt(input: AnalysisInput, present: string[]) {
     `Style du trader : ${style.label}. ${style.roles}`,
     `Méthode : ${METHOD_RULES[input.method ?? "auto"]}`,
     "setup.sniperEntry : UN seul prix limit chirurgical. setup.sniperReason : 1–2 phrases (confluence + structure).",
-    "Si direction=wait : sniperEntry = prix d'attente idéal, noTradeReason rempli, scénarios décrivant le déclencheur.",
+    "Si direction=wait : renseigne setup.watchDirection (long ou short) = le sens du scénario surveillé. Entrée, stop, cibles et checklist concernent CE scénario, jamais le sens opposé : le texte doit dire achat si watchDirection=long, vente si short. Renseigne aussi noTradeReason et le déclencheur dans scenarios.",
+    "timeframe = le TF d'exécution seul (par exemple M15), jamais N/A ni une liste de timeframes.",
   ];
   if (multi) {
     parts.push(
@@ -437,7 +438,7 @@ function buildAnalyzePrompt(input: AnalysisInput, present: string[]) {
       "atr_stop (stop dans la fourchette ATR), invalidation_clear (invalidation nette et visible), " +
       "news_risk (pas d'annonce majeure ; unknown si non visible). Utilise unknown plutôt que d'inventer.",
     "scenarios : 2 entrées — principal (déclencheur, cible, invalidation) puis alternatif (ce qui se passe si le principal échoue).",
-    `overlay : calibre l'axe des prix de l'image ${overlayLabel} (imageLabel="${overlayLabel}"). Choisis DEUX graduations de prix lisibles sur l'axe, éloignées verticalement (au moins 40 % de la hauteur). ` +
+    `overlay : calibre l'axe des prix de l'image ${overlayLabel} (imageLabel="${overlayLabel}"). Choisis DEUX repères de l'axe des prix éloignés verticalement (au moins 40 % de la hauteur) : de préférence l'étiquette colorée du prix actuel si elle est visible, puis une graduation lisible loin d'elle. Mesure y au centre du texte du prix, pas de la ligne de grille. ` +
       "y1/y2 = position verticale de chaque graduation, de 0 (haut de l'image) à 1 (bas de l'image) ; p1/p2 = prix lus. log=true seulement si l'échelle est logarithmique. " +
       "reliable=false si l'axe est illisible, tronqué ou absent.",
     "imageQuality : qualité de lecture de l'ENSEMBLE des images. Ne promets jamais un winrate.",
@@ -449,7 +450,7 @@ function buildAnalyzePrompt(input: AnalysisInput, present: string[]) {
   return parts.join("\n");
 }
 
-function finalize(raw: unknown): ChartAnalysis | null {
+function finalize(raw: unknown, execLabel: string): ChartAnalysis | null {
   const parsed = ChartAnalysisSchema.safeParse(raw);
   const base = parsed.success
     ? parsed.data
@@ -461,6 +462,8 @@ function finalize(raw: unknown): ChartAnalysis | null {
             : {},
       });
   const reconciled = reconcileImageQuality(base) as ChartAnalysis;
+  const tfOk = /^(M\d+|H\d+|D\d*|W\d*|\d+\s?(m|h|d|w|min))$/i.test(reconciled.timeframe.trim());
+  if (!tfOk) reconciled.timeframe = execLabel || reconciled.timeframe.trim().split(/[\s,/]+/)[0] || "—";
   const check = checkPlan(reconciled);
   return {
     ...reconciled,
@@ -588,7 +591,7 @@ export const analyzeChart = createServerFn({ method: "POST" })
       };
     }
     try {
-      const analysis = finalize(raw);
+      const analysis = finalize(raw, labels.length > 1 ? overlayLabelFor(labels) : "");
       if (!analysis) throw new Error("empty");
       if (analysis.overlay && !labels.includes(analysis.overlay.imageLabel)) {
         analysis.overlay = { ...analysis.overlay, imageLabel: overlayLabelFor(labels) };

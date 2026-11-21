@@ -147,7 +147,7 @@ const arr = <T extends z.ZodTypeAny>(item: T, max: number) =>
 export const ChartAnalysisSchema = z.object({
   symbol: str(32).pipe(z.string().min(1).max(32)).catch("UNKNOWN"),
   market: marketEnum.catch("unknown"),
-  timeframe: str(16).pipe(z.string().min(1).max(16)).catch("N/A"),
+  timeframe: str(60).catch(""),
   bias: biasEnum.catch("neutral"),
   confidence: num.pipe(z.number().min(0).max(100)).catch(50),
   trend: str(500).pipe(z.string().min(1)).catch("Structure non détaillée."),
@@ -159,6 +159,14 @@ export const ChartAnalysisSchema = z.object({
   setup: z
     .object({
       direction: directionEnum.catch("wait"),
+      watchDirection: z
+        .preprocess((v) => {
+          const s = String(v ?? "").toLowerCase();
+          if (["long", "buy", "achat", "haussier"].includes(s)) return "long";
+          if (["short", "sell", "vente", "baissier"].includes(s)) return "short";
+          return undefined;
+        }, z.enum(["long", "short"]).optional())
+        .catch(undefined),
       entryMin: num.catch(0),
       entryMax: num.catch(0),
       sniperEntry: num.catch(0),
@@ -294,6 +302,11 @@ export const ANALYSIS_JSON_SCHEMA = {
       required: ["direction"],
       properties: {
         direction: { type: "string", enum: ["long", "short", "wait"] },
+        watchDirection: {
+          type: "string",
+          enum: ["long", "short"],
+          description: "Si direction=wait : sens du scénario surveillé (les prix du plan le concernent).",
+        },
         entryMin: N,
         entryMax: N,
         sniperEntry: N,

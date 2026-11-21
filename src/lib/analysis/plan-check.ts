@@ -45,21 +45,23 @@ export function checkPlan(a: ChartAnalysis): {
   const dir = s.direction;
   const entry = s.sniperEntry || (s.entryMin + s.entryMax) / 2;
   let rrs: number[] = [];
+  // En « wait », les prix décrivent le scénario surveillé : on les contrôle aussi.
+  const planDir = dir !== "wait" ? dir : s.watchDirection;
 
-  if (dir !== "wait") {
+  if (planDir) {
     const sl = s.stopLoss;
     const tps = s.takeProfits;
     if (!entry || !sl) {
       w.push({ level: "error", text: "Entrée ou stop manquant : le plan n'est pas exploitable." });
     } else {
-      const slOk = dir === "long" ? sl < entry : sl > entry;
+      const slOk = planDir === "long" ? sl < entry : sl > entry;
       if (!slOk) {
         w.push({
           level: "error",
-          text: `Le stop (${sl}) est du mauvais côté de l'entrée pour un ${dir === "long" ? "achat" : "vente"}.`,
+          text: `Le stop (${sl}) est du mauvais côté de l'entrée pour un ${planDir === "long" ? "achat" : "vente"}.`,
         });
       }
-      const wrongTp = tps.filter((tp) => (dir === "long" ? tp <= entry : tp >= entry));
+      const wrongTp = tps.filter((tp) => (planDir === "long" ? tp <= entry : tp >= entry));
       if (wrongTp.length) {
         w.push({
           level: "error",
@@ -69,7 +71,7 @@ export function checkPlan(a: ChartAnalysis): {
       const risk = Math.abs(entry - sl);
       if (risk > 0 && slOk) {
         rrs = tps
-          .filter((tp) => (dir === "long" ? tp > entry : tp < entry))
+          .filter((tp) => (planDir === "long" ? tp > entry : tp < entry))
           .map((tp) => Math.round((Math.abs(tp - entry) / risk) * 100) / 100);
         if (rrs.length && rrs[0] < 1) {
           w.push({ level: "warn", text: `R:R vers TP1 de ${rrs[0].toFixed(2)} : sous 1R, le trade coûte plus qu'il ne rapporte.` });

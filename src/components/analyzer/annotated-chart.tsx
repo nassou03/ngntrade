@@ -26,6 +26,9 @@ export function AnnotatedChart({
   decimals: number;
 }) {
   const [showZones, setShowZones] = useState(true);
+  // Décalage vertical manuel (en % de la hauteur) pour corriger une calibration approximative.
+  const [dy, setDy] = useState(0);
+  const off = dy / 100;
   const axis = analysis.overlay?.axis;
 
   const { lines, bands, outOfFrame } = useMemo(() => {
@@ -51,7 +54,15 @@ export function AnnotatedChart({
       push("sl", "Stop", s.stopLoss, COLORS.sl);
       s.takeProfits.forEach((tp, i) => push(`tp${i}`, `TP${i + 1}`, tp, COLORS.tp));
     }
-    for (const [i, z] of (analysis.zones ?? []).entries()) {
+    // On garde les 4 zones les plus proches du prix pour éviter de surcharger le graphique.
+    const ref = s.sniperEntry || analysis.currentPrice;
+    const nearest = [...(analysis.zones ?? []).entries()]
+      .sort(
+        (x, y) =>
+          Math.abs((x[1].low + x[1].high) / 2 - ref) - Math.abs((y[1].low + y[1].high) / 2 - ref),
+      )
+      .slice(0, 4);
+    for (const [i, z] of nearest) {
       const ya = priceToY(z.low, axis);
       const yb = priceToY(z.high, axis);
       if (!inFrame(ya) || !inFrame(yb)) continue;
@@ -85,11 +96,11 @@ export function AnnotatedChart({
       if (showZones) {
         for (const b of bands) {
           ctx.fillStyle = `${b.color}33`;
-          ctx.fillRect(0, b.y1 * c.height, c.width, Math.max(2, (b.y2 - b.y1) * c.height));
+          ctx.fillRect(0, (b.y1 + off) * c.height, c.width, Math.max(2, (b.y2 - b.y1) * c.height));
         }
       }
       for (const l of lines) {
-        const y = l.y * c.height;
+        const y = (l.y + off) * c.height;
         ctx.strokeStyle = l.color;
         ctx.lineWidth = Math.max(1.5, c.width / 700);
         ctx.setLineDash(l.key.startsWith("tp") || l.key === "sl" ? [10, 6] : []);
@@ -126,7 +137,7 @@ export function AnnotatedChart({
               <div
                 key={b.key}
                 className="pointer-events-none absolute inset-x-0 border-y border-accent/40 bg-accent/15"
-                style={{ top: `${b.y1 * 100}%`, height: `${Math.max(0.4, (b.y2 - b.y1) * 100)}%` }}
+                style={{ top: `${(b.y1 + off) * 100}%`, height: `${Math.max(0.4, (b.y2 - b.y1) * 100)}%` }}
               >
                 <span className="absolute left-1 top-0 rounded-sm bg-background/80 px-1 text-[10px] leading-4 text-accent">
                   {b.label}
@@ -138,7 +149,7 @@ export function AnnotatedChart({
           <div
             key={l.key}
             className="pointer-events-none absolute inset-x-0"
-            style={{ top: `${l.y * 100}%` }}
+            style={{ top: `${(l.y + off) * 100}%` }}
           >
             <div
               className="w-full"
@@ -157,10 +168,24 @@ export function AnnotatedChart({
       </div>
       <figcaption className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2.5 text-xs text-muted-foreground">
         <span>
-          Positions déduites de l'axe des prix par l'IA : indicatives, vérifiez sur votre plateforme.
+          Positions déduites de l'axe des prix par l'IA : indicatives. Si les lignes sont décalées, utilisez « Ajuster » (double-clic pour remettre à zéro).
           {outOfFrame ? ` ${outOfFrame} niveau(x) hors cadre.` : ""}
         </span>
         <span className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5" title="Décale tous les niveaux si l'alignement est imprécis">
+            Ajuster
+            <input
+              type="range"
+              min={-8}
+              max={8}
+              step={0.25}
+              value={dy}
+              onChange={(e) => setDy(Number(e.target.value))}
+              onDoubleClick={() => setDy(0)}
+              className="w-24 accent-[var(--color-accent)]"
+              aria-label="Décalage vertical des niveaux"
+            />
+          </label>
           {bands.length ? (
             <label className="flex cursor-pointer items-center gap-1.5">
               <input

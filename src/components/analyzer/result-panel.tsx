@@ -208,7 +208,15 @@ export function ResultPanel({
           {/* Plan */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Plan de trade</CardTitle>
+              <CardTitle className="text-base">
+                {dir === "wait" ? "Plan surveillé (non validé)" : "Plan de trade"}
+              </CardTitle>
+              {dir === "wait" && s.watchDirection ? (
+                <p className="text-sm text-muted-foreground">
+                  Scénario {s.watchDirection === "long" ? "d'achat" : "de vente"} à envisager
+                  seulement après la confirmation décrite ci-dessous. Ne pas entrer maintenant.
+                </p>
+              ) : null}
             </CardHeader>
             <CardContent className="space-y-1">
               <PlanRow tone="accent" k="Entrée limit" v={formatPrice(entry, d)} sub={`Zone ${formatPrice(s.entryMin, d)} – ${formatPrice(s.entryMax, d)}`} />

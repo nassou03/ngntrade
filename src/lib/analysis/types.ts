@@ -21,6 +21,8 @@ export type ImageQuality = {
 };
 
 export type ChartSetup = {
+  /** Si direction = wait : sens du scénario surveillé (les prix du plan le concernent). */
+  watchDirection?: "long" | "short";
   direction: Direction;
   entryMin: number;
   entryMax: number;
